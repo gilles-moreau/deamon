@@ -16,20 +16,22 @@ CFLAGS=-Wall -g
 DEPS = macros.h
 ODIR = obj
 SDIR = common
-#OBJ = skrum_errno.o skrum_protocol_api.o skrum_protocol_defs.o skrum_protocol_pack.o skrum_protocol_socket.o pack.o logs.o
 
-SOURCES     := $(shell find ./$(SDIR) -type f -name "*.c")
-OBJECTS     := $(SOURCES:.c=.o)
+SOURCES     := $(wildcard $(SDIR)/*.c)
+OBJECTS     := $(patsubst $(SDIR)/%.c,$(ODIR)/%.o,$(SOURCES))
 
-all: skrumd
+all: skrumd skrumd_client
 
 skrumd: skrumd.c $(OBJECTS) 
-> $(CC) -o $@ $^ $(CFLAGS)
+> $(CC) $(CFLAGS) -o $@ $^ 
 
-obj/%.o: common/%.c $(DEPS)
-> $(CC) -c -o $@ $< $(CFLAGS)
+skrumd_client: skrumd_client.c $(OBJECTS) 
+> $(CC) $(CFLAGS) -o $@ $^ 
+
+$(OBJECTS): $(ODIR)/%.o: $(SDIR)/%.c 
+> $(CC) $(CFLAGS) -c -o $@ $< 
 
 .PHONY=clean
 
 clean:
-> rm common/*.o
+> rm $(ODIR)/*.o

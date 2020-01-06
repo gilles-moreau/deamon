@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 
 	my_addr = malloc(sizeof(my_addr));
 	
-	daemonize();
+	//daemonize();
 	
 	sockfd = skrum_init_msg_engine(my_addr);
 	if (sockfd < 0){
