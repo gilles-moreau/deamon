@@ -99,6 +99,9 @@ int main(int argc, char **argv)
 	
 	//daemonize();
 	
+	// Init logs
+	init_log(argv[0], LOG_OPTS_INITIALIZER, LOG_FILE);
+
 	sockfd = skrum_init_msg_engine(my_addr);
 	if (sockfd < 0){
 		error("Error: engine msg");
