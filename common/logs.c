@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stddef.h>
 #include <pthread.h>
+#include <libgen.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -102,25 +104,28 @@ static void _log_printf(log_t *log, FILE *stream,
 static void _log_msg(log_level_t level, const char *fmt, va_list args)
 {
 	char *pfx = "";
+	char *pretty_fmt;
+	const char *fmt_template = "%s %s\n";
+	int len;
 
 	skrum_mutex_lock(&log_lock);
 
 	if (log->opts.syslog_level > level) {
 		switch(level) {
 			case LOG_LEVEL_FATAL:
-				pfx = "fatal :";
+				pfx = "fatal:";
 				break;
 
 			case LOG_LEVEL_ERROR:
-				pfx = "error :";
+				pfx = "error:";
 				break;
 
 			case LOG_LEVEL_INFO:
-				pfx = "info :";
+				pfx = "info:";
 				break;
 
 			case LOG_LEVEL_WARNING:
-				pfx = "warning :";
+				pfx = "warning:";
 				break;
 
 			case LOG_LEVEL_VERBOSE:
@@ -128,26 +133,35 @@ static void _log_msg(log_level_t level, const char *fmt, va_list args)
 				break;
 
 			case LOG_LEVEL_DEBUG:
-				pfx = "debug :";
+				pfx = "debug:";
 				break;
 
 			default:
-				pfx = "internal error :";
+				pfx = "internal error:";
 				break;
 		}
 	}
 
+	len = snprintf(NULL, 0, fmt_template, pfx, fmt); 
+	pretty_fmt = malloc(len+1);
+	if (!pretty_fmt)
+		perror("malloc");	
+
+	snprintf(pretty_fmt, len+1, fmt_template, pfx, fmt);
+
 	if (level < log->opts.stderr_level) {
 
 		fflush(stdout);
-		_log_printf(log, stderr, fmt, args);
+		_log_printf(log, stderr, pretty_fmt, args);
 		fflush(stderr);	
 	}
 
 	if (level < log->opts.logfile_level) {
-		_log_printf(log, log->logfp, fmt, args);
+		_log_printf(log, log->logfp, pretty_fmt, args);
 		fflush(log->logfp);
 	}
+
+	free(pretty_fmt);
 }
 
 void fatal(const char *fmt, ...)

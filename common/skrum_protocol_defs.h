@@ -12,10 +12,10 @@ typedef enum {
 } skrum_msg_type_t;
 
 typedef struct skrum_msg {
-	struct sockaddr_in dst_addr;
+	uint16_t msg_type;
+	struct sockaddr_in orig_addr;
 	void *data;
 	uint32_t data_size;
-	skrum_msg_type_t msg_type;
 } skrum_msg_t;
 
 typedef struct ints {

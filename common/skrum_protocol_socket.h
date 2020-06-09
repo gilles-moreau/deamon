@@ -1,4 +1,3 @@
-
 #ifndef _SKRUM_PROTOCOL_SOCKET_H
 #define _SKRUM_PROTOCOL_SOCKET_H
 

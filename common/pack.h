@@ -4,7 +4,7 @@
 #include <inttypes.h>
 
 #define BUF_SIZE (16 * 1024)
-#define MAX_BUF_SIZE ((uint32_t) 0xffff0000)
+#define MAX_BUF_SIZE (32 * 1024)
 
 typedef struct skrum_buf {
 	char *head;
@@ -21,7 +21,7 @@ typedef struct skrum_buf *Buf;
 Buf create_buf (char *data, uint32_t size);
 void free_buf (Buf my_buf);
 Buf init_buf(uint32_t size);
-uint32_t remaining_bug (Buf my_buf);
+uint32_t remaining_buf (Buf my_buf);
 
 void pack16 (uint16_t val, Buf buffer);
 void unpack16 (uint16_t *val, Buf buffer);

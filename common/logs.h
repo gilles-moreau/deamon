@@ -19,14 +19,6 @@ typedef struct {
 	log_level_t logfile_level;
 } log_option_t;
 
-#define LOG_OPTS_INITIALIZER { LOG_LEVEL_INFO, LOG_LEVEL_INFO, LOG_LEVEL_INFO }
-
-#define LOG_OPTS_SYSLOG_DEFAULT	\
-{ LOG_LEVEL_QUIET, LOG_LEVEL_INFO, LOG_LEVEL_QUIET }
-
-#define LOG_OPTS_STDERR_ONLY	\
-{ LOG_LEVEL_INFO,  LOG_LEVEL_QUIET, LOG_LEVEL_QUIET }
-
 extern void fatal(const char *, ...)
 	__attribute__((format (printf, 1, 2))) __attribute__((noreturn));
 

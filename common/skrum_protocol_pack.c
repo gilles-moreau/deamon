@@ -14,6 +14,7 @@ void pack_ints_msg (ints_msg_t *msg, Buf buffer)
 
 void unpack_ints_msg (ints_msg_t **msg_ptr, Buf buffer)
 {
+	info("Unpacking int message");
 	ints_msg_t *msg;
 	msg = malloc(sizeof(ints_msg_t));
 	*msg_ptr = msg;
@@ -26,19 +27,19 @@ void unpack_ints_msg (ints_msg_t **msg_ptr, Buf buffer)
 int pack_msg(skrum_msg_t const *msg, Buf buffer)
 {
 	int rc = 0;
-	printf("Packing message\n");
-	skrum_msg_type_t msg_type;
+	info("Packing message");
 
-	msg_type = msg->msg_type;
+	pack16(msg->msg_type, buffer);
+	pack_sockaddr(&msg->orig_addr, buffer);
 
-	switch(msg_type) {
+	switch(msg->msg_type) {
 		case INTS_MSG:
-			pack_ints_msg ((ints_msg_t *)
-					msg->data, buffer);
+			pack_ints_msg((ints_msg_t *)msg->data, buffer);
+			pack32(msg->data_size, buffer);
 			break;
 		default:
 			rc = 1;
-			printf("No pack method for the msg type");
+			error("No pack method for the msg type");
 	}
 
 	return rc;
@@ -47,12 +48,16 @@ int pack_msg(skrum_msg_t const *msg, Buf buffer)
 int unpack_msg(skrum_msg_t *msg, Buf buffer)
 {
 	int rc = 0;
+
+	info("Unpacking message");
 	msg->data = NULL;
+
+	unpack16(&msg->msg_type, buffer);
+	unpack_sockaddr(&msg->orig_addr, buffer);
 
 	switch (msg->msg_type) {
 		case INTS_MSG:
-			unpack_ints_msg((ints_msg_t **)
-					&(msg->data), buffer);
+			unpack_ints_msg((ints_msg_t **)&(msg->data), buffer);
 			break;
 		default:
 			rc = 1;

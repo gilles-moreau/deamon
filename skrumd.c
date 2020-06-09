@@ -93,22 +93,23 @@ int main(int argc, char **argv)
         struct sockaddr_in *my_addr;    /* my address information */
         struct sockaddr_in their_addr;    /* my address information */
         int sin_size;
-	skrum_msg_t *msg;
+	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
+	skrum_msg_t msg;
 
 	my_addr = malloc(sizeof(my_addr));
 	
 	//daemonize();
 	
 	// Init logs
-	init_log(argv[0], LOG_OPTS_INITIALIZER, LOG_FILE);
+	init_log(argv[0], log_opt, LOG_FILE);
 
 	sockfd = skrum_init_msg_engine(my_addr);
 	if (sockfd < 0){
-		error("Error: engine msg");
+		error("engine msg");
 		exit(1);
 	}
 
-	info("Waiting for new connection\n");
+	info("Waiting for new connection");
 
 	while(1)
 	{
@@ -116,7 +117,7 @@ int main(int argc, char **argv)
 
 		info("server: got connection");
 		
-		skrum_recv_msg(new_fd, msg);
+		skrum_recv_msg(new_fd, &msg);
 
 		close(new_fd);  /* parent doesn't need this */
 
