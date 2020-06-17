@@ -16,6 +16,9 @@
 #include "common/skrum_protocol_pack.h"
 #include "common/skrum_protocol_api.h"
 #include "common/skrum_protocol_socket.h"
+#include "common/xcpuinfo.h"
+
+#include "skrumd.h"
 
 #define LOCK_FILE "skrumd.lock"
 #define LOG_FILE "skrumd.log"
@@ -92,6 +95,7 @@ int main(int argc, char **argv)
 	int sockfd, new_fd;  /* listen on sock_fd, new connection on new_fd */
         struct sockaddr_in *my_addr;    /* my address information */
         struct sockaddr_in their_addr;    /* my address information */
+	skrumd_conf_t *conf;
         int sin_size;
 	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
 	skrum_msg_t msg;
@@ -99,6 +103,9 @@ int main(int argc, char **argv)
 	my_addr = malloc(sizeof(my_addr));
 	
 	//daemonize();
+
+	xcpuinfo_hwloc_topo_get(&conf->cpus, &conf->boards,
+			&conf->sockets, &conf->cores, &conf->threads);
 	
 	// Init logs
 	init_log(argv[0], log_opt, LOG_FILE);
