@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 	int sockfd, new_fd;  /* listen on sock_fd, new connection on new_fd */
         struct sockaddr_in *my_addr;    /* my address information */
         struct sockaddr_in their_addr;    /* my address information */
-	skrumd_conf_t *conf;
+	skrumd_conf_t conf;
         int sin_size;
 	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
 	skrum_msg_t msg;
@@ -107,8 +107,8 @@ int main(int argc, char **argv)
 	// Init logs
 	init_log(argv[0], log_opt, LOG_FILE);
 
-	xcpuinfo_hwloc_topo_get(&conf->cpus, &conf->boards,
-			&conf->sockets, &conf->cores, &conf->threads);
+	xcpuinfo_hwloc_topo_get(&conf.cpus, &conf.boards,
+			&conf.sockets, &conf.cores, &conf.threads);
 
 	sockfd = skrum_init_msg_engine(my_addr);
 	if (sockfd < 0){
