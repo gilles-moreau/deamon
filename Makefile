@@ -29,7 +29,7 @@ skrumd: src/skrumd.c $(OBJECTS)
 > $(CC) $(CFLAGS) $(LDLIBS) -o $@ $^ 
 
 skrumd_client: src/skrumd_client.c $(OBJECTS) 
-> $(CC) $(CFLAGS) -o $@ $^ 
+> $(CC) $(CFLAGS) $(LDLIBS) -o $@ $^ 
 
 $(OBJECTS): $(ODIR)/%.o: $(SDIR)/%.c 
 > $(CC) $(CFLAGS) -c -o $@ $< 

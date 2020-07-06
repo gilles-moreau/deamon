@@ -21,7 +21,7 @@ typedef struct {
 } log_t;
 
 static log_t *log = NULL;
-static pthread_mutex_t  log_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int _log_init(char *prog, log_option_t opts, char *logfile)
 {
@@ -110,7 +110,7 @@ static void _log_msg(log_level_t level, const char *fmt, va_list args)
 
 	skrum_mutex_lock(&log_lock);
 
-	if (log->opts.syslog_level > level) {
+	if (log->opts.stderr_level > level) {
 		switch(level) {
 			case LOG_LEVEL_FATAL:
 				pfx = "fatal:";
@@ -150,7 +150,6 @@ static void _log_msg(log_level_t level, const char *fmt, va_list args)
 	snprintf(pretty_fmt, len+1, fmt_template, pfx, fmt);
 
 	if (level < log->opts.stderr_level) {
-
 		fflush(stdout);
 		_log_printf(log, stderr, pretty_fmt, args);
 		fflush(stderr);	
@@ -162,6 +161,7 @@ static void _log_msg(log_level_t level, const char *fmt, va_list args)
 	}
 
 	free(pretty_fmt);
+	skrum_mutex_unlock(&log_lock);
 }
 
 void fatal(const char *fmt, ...)

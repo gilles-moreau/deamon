@@ -104,11 +104,11 @@ int main(int argc, char **argv)
 	
 	//daemonize();
 
-	xcpuinfo_hwloc_topo_get(&conf->cpus, &conf->boards,
-			&conf->sockets, &conf->cores, &conf->threads);
-	
 	// Init logs
 	init_log(argv[0], log_opt, LOG_FILE);
+
+	xcpuinfo_hwloc_topo_get(&conf->cpus, &conf->boards,
+			&conf->sockets, &conf->cores, &conf->threads);
 
 	sockfd = skrum_init_msg_engine(my_addr);
 	if (sockfd < 0){

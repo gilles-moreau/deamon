@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include "logs.h"
 
 #include <hwloc.h>
 
@@ -36,6 +37,8 @@ extern int xcpuinfo_hwloc_topo_get (
 	hwloc_obj_t obj;
 
 	hwloc_topology_init(&topology);
+	topodepth = hwloc_get_type_depth(topology, HWLOC_OBJ_PACKAGE);
+	info("%d", topodepth);
 	print_children(topology, hwloc_get_root_obj(topology), 0);
 
 	return 0;
