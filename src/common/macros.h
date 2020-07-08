@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <string.h>
 
-#include "logs.h"
+#include "src/common/logs.h"
 
 #ifndef MAX
 #  define MAX(a,b) ((a) > (b) ? (a) : (b))

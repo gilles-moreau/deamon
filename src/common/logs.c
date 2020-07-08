@@ -8,10 +8,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
-#include "logs.h"
-#include "macros.h"
-#include "skrum_errno.h"
+#include "src/common/logs.h"
+#include "src/common/macros.h"
+#include "src/common/skrum_errno.h"
 
 typedef struct {
 	char *argv0;

@@ -13,28 +13,58 @@ CC=gcc
 CPPFLAGS=
 TARGET_ARCH=
 CFLAGS=-Wall -g
+INCLUDE=-I.
 DEPS = macros.h
-ODIR = obj
-SDIR = src/common
+BUILDDIR := build
+SDIR := src
 
-SOURCES     := $(wildcard $(SDIR)/*.c)
-OBJECTS     := $(patsubst $(SDIR)/%.c,$(ODIR)/%.o,$(SOURCES))
+# common variables
+SCOMMONDIR := $(SDIR)/common
+OCOMMONDIR := $(BUILDDIR)/common
+SCOMMONFILES     := $(wildcard $(SCOMMONDIR)/*.c)
+OCOMMONFILES     := $(patsubst $(SCOMMONDIR)/%.c,$(OCOMMONDIR)/%.o,$(SCOMMONFILES))
 
+# skrumd variables
+SSKRUMDDIR := $(SDIR)/skrumd
+OSKRUMDDIR := $(BUILDDIR)/skrumd
+SSKRUMDFILES     := $(SSKRUMDDIR)/skrumd_req.c
+OSKRUMDFILES     := $(patsubst $(SSKRUMDDIR)/%.c,$(OSKRUMDDIR)/%.o,$(SSKRUMDFILES))
+
+# skrumctld variables
+SSKRUMCTLDDIR := $(SDIR)/skrumctld
+OSKRUMCTLDDIR := $(BUILDDIR)/skrumctld
+SSKRUMCTLDFILES     := $(SSKRUMCTLDDIR)/
+OSKRUMCTLDFILES     := $(patsubst $(SSKRUMCTLDDIR)/%.c,$(OSKRUMCTLDDIR)/%.o,$(SSKRUMCTLDFILES))
+
+# flags
 CFLAGS      += $(shell pkg-config --cflags hwloc)
 LDLIBS      += $(shell pkg-config --libs hwloc)
 
-all: skrumd skrumd_client
+all: skrumd skrumctld
 
-skrumd: src/skrumd.c $(OBJECTS) 
-> $(CC) $(CFLAGS) $(LDLIBS) -o $@ $^ 
+# build skrumd
+skrumd: $(SSKRUMDDIR)/skrumd.c $(OSKRUMDFILES) $(OCOMMONFILES) 
+> $(CC) $(CFLAGS) $(LDLIBS) $(INCLUDE) -o $@ $^ 
 
-skrumd_client: src/skrumd_client.c $(OBJECTS) 
-> $(CC) $(CFLAGS) $(LDLIBS) -o $@ $^ 
+$(OSKRUMDFILES): $(SSKRUMDFILES) | $(OSKRUMDDIR)
+> $(CC) $(CFLAGS) $(INCLUDE) -c -o $@ $^
 
-$(OBJECTS): $(ODIR)/%.o: $(SDIR)/%.c 
-> $(CC) $(CFLAGS) -c -o $@ $< 
+$(OSKRUMDDIR):
+> mkdir -p $@
+
+# build skrumctld
+skrumctld: $(SSKRUMCTLDDIR)/skrumctld.c $(OCOMMONFILES) 
+> $(CC) $(CFLAGS) $(INCLUDE) $(LDLIBS) -o $@ $^ 
+
+
+# build common objects
+$(OCOMMONFILES): $(OCOMMONDIR)/%.o: $(SCOMMONDIR)/%.c | $(OCOMMONDIR)
+> $(CC) $(CFLAGS) $(INCLUDE) -c -o $@ $< 
+
+$(OCOMMONDIR):
+> mkdir -p $@
 
 .PHONY=clean
 
 clean:
-> rm $(ODIR)/*.o
+> rm -rf $(BUILDDIR)/

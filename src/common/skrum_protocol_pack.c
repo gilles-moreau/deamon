@@ -3,8 +3,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
 
-#include "skrum_protocol_pack.h"
+#include "src/common/pack.h"
+#include "src/common/logs.h"
+#include "src/common/skrum_protocol_api.h"
+
+#include "src/common/skrum_protocol_pack.h"
 
 void pack_ints_msg (ints_msg_t *msg, Buf buffer)
 {
@@ -61,7 +68,7 @@ int unpack_msg(skrum_msg_t *msg, Buf buffer)
 			break;
 		default:
 			rc = 1;
-			printf("No upack method for this msg type");
+			error("No upack method for this msg type");
 	}
 
 	return rc;

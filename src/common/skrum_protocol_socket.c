@@ -1,6 +1,18 @@
 /* Skrum protocol socket */
+#include <stdio.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
-#include "skrum_protocol_socket.h"
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+
+#include "src/common/skrum_protocol_socket.h"
 
 extern int skrum_init_msg_engine(struct sockaddr_in *addr)
 {
@@ -9,10 +21,6 @@ extern int skrum_init_msg_engine(struct sockaddr_in *addr)
 	if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
 		return -1;
 	}
-	addr->sin_family = AF_INET;
-	addr->sin_port = htons(PORT);
-	addr->sin_addr.s_addr = INADDR_ANY;
-	bzero(&(addr->sin_zero), 8);
 
 	if (bind(fd, (struct sockaddr *)addr, sizeof(struct sockaddr)) \
 			== -1) {

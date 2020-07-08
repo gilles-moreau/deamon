@@ -31,6 +31,6 @@ extern void info(const char *, ...)
 extern void debug(const char *, ...)
 	__attribute__((format (printf, 1, 2)));
 
-void log_init(char *prog, log_option_t opts, char *logfile);
+int init_log(char *prog, log_option_t opts, char *logfile);
 
 #endif

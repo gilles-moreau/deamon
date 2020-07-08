@@ -4,9 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #include <arpa/inet.h>
 
-#include "pack.h"
+#include "src/common/logs.h"
+
+#include "src/common/pack.h"
 
 Buf create_buf (char *data, uint32_t size)
 {
@@ -128,7 +131,7 @@ void unpack32 (uint32_t *val, Buf buffer)
 	buffer->processed += sizeof(nl);
 }
 
-void pack_sockaddr(struct sockaddr_in *addr, Buf buffer)
+void pack_sockaddr(struct sockaddr_in const *addr, Buf buffer)
 {
 	pack16(addr->sin_addr.s_addr, buffer);
 	pack32(addr->sin_port, buffer);

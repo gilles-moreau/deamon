@@ -1,12 +1,13 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include "logs.h"
-
 #include <hwloc.h>
 
+#include "src/common/logs.h"
+
+#include "src/common/xcpuinfo.h"
  
-static void print_children(hwloc_topology_t topology, hwloc_obj_t obj,
+static void _print_children(hwloc_topology_t topology, hwloc_obj_t obj,
 		int depth)
 {
 	char type[32], attr[1024];
@@ -21,7 +22,7 @@ static void print_children(hwloc_topology_t topology, hwloc_obj_t obj,
 		printf("(%s)", attr);
 	printf("\n");
 	for (i = 0; i < obj->arity; i++) {
-		print_children(topology, obj->children[i], depth + 1);
+		_print_children(topology, obj->children[i], depth + 1);
 	}
 }
 
@@ -30,24 +31,22 @@ extern int xcpuinfo_hwloc_topo_get (
 		uint16_t *p_sockets, uint16_t *p_cores, uint16_t *p_threads)
 {
 	enum { SOCKET=0, CORE=1, PU=2, LAST_OBJ=3 };
+	int rc = XCPUINFO_SUCCESS;
+
 	hwloc_topology_t topology;
-	hwloc_cpuset_t cpuset;
-	hwloc_obj_t obj;
 	hwloc_obj_type_t objtype[LAST_OBJ];
 	int nobj[LAST_OBJ];
 
-	int actual_boards;
-	int actual_cpus;
-	int actual_cores;
-	int sock_cnt;
-	int cores_cnt;
+	int actual_boards = 0;
+	int actual_cpus = 0;
+	int actual_cores = 0;
 
-	int depth;
+	int depth = 0;
 
 	info("hwloc_topology_init");
 	if (hwloc_topology_init(&topology)) {
 		debug("hwloc_topology_init() failed.");
-		return 1;
+		return XCPUINFO_ERROR;
 	}
 
 	/* ignore cache and misc */
@@ -69,7 +68,7 @@ extern int xcpuinfo_hwloc_topo_get (
 	info("hwloc_topology_load");
 	if (hwloc_topology_load(topology)) {
 		debug("hwloc_topology_load() failed");
-		return 2;
+		return XCPUINFO_ERROR;
 	}
 
 	objtype[SOCKET] = HWLOC_OBJ_SOCKET;
@@ -98,7 +97,7 @@ extern int xcpuinfo_hwloc_topo_get (
 	nobj[CORE] = actual_cores/nobj[SOCKET];
 
 	/* number of threads per cores */
-	nobj[PU] /= nobj[CORE];
+	nobj[PU] = actual_cpus/nobj[CORE];
 
 	info("hwloc_topology_destroy");
 	hwloc_topology_destroy(topology);
@@ -110,5 +109,5 @@ extern int xcpuinfo_hwloc_topo_get (
 	*p_cores = nobj[CORE];
 	*p_threads = nobj[PU];
 
-	return 0;
+	return rc;
 }

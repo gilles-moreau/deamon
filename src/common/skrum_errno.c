@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "skrum_errno.h"
+#include "src/common/skrum_errno.h"
 
 /* Type for error string table entries */
 typedef struct {
@@ -40,7 +40,7 @@ static char *_lookup_skrum_api_errtab(int errnum)
 }
 
 /*
- * Return string associated with error (Slurm or system).
+ * Return string associated with error (Skrum or system).
  * Always returns a valid string (because strerror always does).
  */
 char *skrum_strerror(int errnum)

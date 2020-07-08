@@ -13,10 +13,10 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-#include "common/logs.h"
-#include "common/skrum_protocol_defs.h"
-#include "common/skrum_protocol_pack.h"
-#include "common/skrum_protocol_api.h"
+#include "src/common/logs.h"
+#include "src/common/skrum_protocol_defs.h"
+#include "src/common/skrum_protocol_pack.h"
+#include "src/common/skrum_protocol_api.h"
 
 #define PORT "3434"
 #define LOG_FILE "skrumd.log"
@@ -25,19 +25,13 @@
 
 int main(int argc, char **argv)
 {
-	int sockfd, new_fd;  /* listen on sock_fd, new connection on new_fd */
-	struct addrinfo hints, *res, *p;
-	struct addrinfo *servinfo;
-        int sin_size;
+	int sockfd;  /* listen on sock_fd, new connection on new_fd */
+	struct addrinfo hints, *res;
 	int status;
-	char hostname[MAX_L_HOSTNAME+1];
-	int host_size = MAX_L_HOSTNAME;
 
 	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
 
-	uint32_t buffer_size = BUF_SIZE;
 	skrum_msg_t msg;
-	skrum_msg_t recv_msg;
 	ints_msg_t *ints_msg;
 	//daemonize();
 	
