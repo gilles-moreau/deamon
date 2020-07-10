@@ -17,10 +17,10 @@
 
 extern void skrum_setup_sockaddr(struct sockaddr_in *sin, uint16_t port)
 {
+	memset(sin, 0, sizeof(struct sockaddr_in));
 	sin->sin_family = AF_INET;
 	sin->sin_port = htons(port);
 	sin->sin_addr.s_addr = INADDR_ANY;
-	memset(sin, 0, sizeof(struct sockaddr_in));
 }
 
 extern int skrum_init_msg_engine_port(uint16_t selected_port, 
@@ -28,7 +28,7 @@ extern int skrum_init_msg_engine_port(uint16_t selected_port,
 {
 	int cc;
 	struct sockaddr_in addr;
-	int i;
+	int i = selected_port;
 
 	skrum_setup_sockaddr(&addr, selected_port);
 	cc = skrum_init_msg_engine(&addr);
@@ -37,11 +37,11 @@ extern int skrum_init_msg_engine_port(uint16_t selected_port,
 			skrum_setup_sockaddr(&addr, i);
 			cc = skrum_init_msg_engine(&addr);
 			if (cc >= 0) {
-				*actual_port = i;
 				break;
 			}
 		}
 	}
+	*actual_port = i;
 	return cc;
 }
 
@@ -64,28 +64,36 @@ extern int skrum_send_msg(int fd, skrum_msg_t *msg)
 	/*
 	 * Send message
 	 */
-	rc = skrum_send(fd, get_buf_data(buffer), size_buf(buffer));
+	rc = skrum_msg_sendto(fd, get_buf_data(buffer), get_buf_offset(buffer));
+
+	if (rc < 0)
+		error("error while sending message");
 
 	free_buf(buffer);
 	return rc;
 }
 
-int skrum_recv_msg(int fd, skrum_msg_t *msg)
+int skrum_receive_msg(int fd, skrum_msg_t *msg, struct sockaddr_in *orig_addr)
 {
 	int rc;
-	char buf[MAX_BUF_SIZE];
+	char *buf = NULL;
+	uint32_t buflen = 0;
 	Buf buffer;
+
+	memcpy(&msg->orig_addr, orig_addr, sizeof(struct sockaddr_in));
 
 	info("Receiving message");
 	/*
-	 * Recv message
+	 * Recv message. buf is allocated inside
 	 */
-	rc = skrum_recv(fd, buf, MAX_BUF_SIZE);
+	rc = skrum_msg_recvfrom(fd, &buf, &buflen);
+	if (rc < 0)
+		error("error while receiving message");
 
 	/*
 	 * Create buffer
 	 */
-	buffer = create_buf(buf, MAX_BUF_SIZE);
+	buffer = create_buf(buf, buflen);
 	/* 
 	 * Unpack message
 	 */

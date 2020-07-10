@@ -39,6 +39,7 @@ OSKRUMCTLDFILES     := $(patsubst $(SSKRUMCTLDDIR)/%.c,$(OSKRUMCTLDDIR)/%.o,$(SS
 # flags
 CFLAGS      += $(shell pkg-config --cflags hwloc)
 LDLIBS      += $(shell pkg-config --libs hwloc)
+LDLIBS      += -lpthread
 
 all: skrumd skrumctld
 

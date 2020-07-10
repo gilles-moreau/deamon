@@ -30,13 +30,28 @@
 #define RUNNING_DIR "/tmp"
 #define MAXHOSTNAMELEN 1024
 
+#define MAXTHREADS 4
+
+typedef struct connection {
+	int fd;
+	struct sockaddr_in *cli_addr;
+} conn_t;
+
+/* count of active threads */
+static int active_threads = 0;
+static pthread_mutex_t active_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t active_cond  = PTHREAD_COND_INITIALIZER;
+
 skrumd_conf_t *conf;
 static pthread_mutex_t config_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int _skrumd_init(void);
 static void _init_conf(void);
 static void _msg_engine(void);
-static void _handle_connection(int sock);
+static void _handle_connection(int sock, struct sockaddr_in *cli);
+static void *_service_connection(void *arg);
+static void _increment_thread_cnt(void);
+static void _decrement_thread_cnt(void);
 
 void signal_handler(int sig)
 {
@@ -156,7 +171,7 @@ static void _msg_engine(void)
 	{
 		info("Waiting for new connection");
 		if ((sock = skrum_accept(conf->lfd, cli)) >= 0){
-			_handle_connection(sock);
+			_handle_connection(sock, cli);
 			continue;
 		}
 		
@@ -168,19 +183,57 @@ static void _msg_engine(void)
 	return;
 }
 
-static void _handle_connection(int sock)
+static void _handle_connection(int sock, struct sockaddr_in *cli)
 {
-	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 	int rc = 0;
+	conn_t *arg = malloc(sizeof(conn_t));
+
+	arg->fd = sock;
+	arg->cli_addr = cli;
+
+	_increment_thread_cnt();
+
+	skrum_thread_create_detached(NULL, _service_connection, arg);
+
+	return;
+}
+
+static void *_service_connection(void *arg)
+{
+	int rc = 0;
+	conn_t *conn = (conn_t *)arg;
+	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 
 	skrum_msg_t_init(msg);
-	if ((rc = skrum_recv_msg(sock, msg)) < 0){
+	if ((rc = skrum_receive_msg(conn->fd, msg, conn->cli_addr)) < 0){
 		error("recv message");
-		return;
+		return NULL;
 	}
 	skrumd_req(msg);
 
-	return;
+	free(msg);
+	_decrement_thread_cnt();
+	return NULL;
+
+}
+
+static void _decrement_thread_cnt(void)
+{
+	skrum_mutex_lock(&active_lock);
+	if (active_threads>0)
+		active_threads--;
+	skrum_cond_signal(&active_cond);
+	skrum_mutex_unlock(&active_lock);
+}
+
+static void _increment_thread_cnt(void)
+{
+	skrum_mutex_lock(&active_lock);
+	while (active_threads >= MAXTHREADS) {
+		skrum_cond_wait(&active_cond, &active_lock);
+	}
+	active_threads++;
+	skrum_mutex_unlock(&active_lock);
 }
 
 static int _skrumd_init(void) 
@@ -199,7 +252,7 @@ static int _skrumd_init(void)
 static void _init_conf(void) 
 {
 	char host[MAXHOSTNAMELEN];
-	size_t hostsize = 0;
+	size_t hostsize = MAXHOSTNAMELEN;
 	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
 
 	host[MAXHOSTNAMELEN-1] = '\0';
