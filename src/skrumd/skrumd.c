@@ -19,15 +19,14 @@
 #include "src/common/skrum_protocol_pack.h"
 #include "src/common/skrum_protocol_api.h"
 #include "src/common/skrum_protocol_socket.h"
+#include "src/common/skrum_discovery_api.h"
 #include "src/common/macros.h"
 #include "src/common/xcpuinfo.h"
 
 #include "src/skrumd/skrumd_req.h"
 #include "src/skrumd/skrumd.h"
 
-#define LOCK_FILE "skrumd.lock"
 #define LOG_FILE "skrumd.log"
-#define RUNNING_DIR "/tmp"
 #define MAXHOSTNAMELEN 1024
 
 #define MAXTHREADS 4
@@ -48,80 +47,17 @@ static pthread_mutex_t config_lock = PTHREAD_MUTEX_INITIALIZER;
 static int _skrumd_init(void);
 static void _init_conf(void);
 static void _msg_engine(void);
+static void _discovery_engine(void);
 static void _handle_connection(int sock, struct sockaddr_in *cli);
+static void _handle_discovery(skrum_msg_t *msg, struct sockaddr_in cont_addr);
 static void *_service_connection(void *arg);
 static void _increment_thread_cnt(void);
 static void _decrement_thread_cnt(void);
 
-void signal_handler(int sig)
-{
-	switch(sig) {
-		case SIGHUP:
-			info("hangup signal catched");
-			break;
-		case SIGTERM:
-			info("terminate signal catched");
-			exit(0);
-			break;
-	}
-}
-
-void daemonize()
-{
-	int i,lfp;
-	char str[10];
-
-	if(getppid()==1) {
-		info("Already a deamon");
-		return; /* already a daemon */
-	}
-
-	i=fork();
-
-	if (i<0) {
-		error("Error: fork");
-		exit(1); /* fork error */
-	}
-	if (i>0) 
-		exit(0); /* parent exits */
-	
-	/* child (daemon) continues */
-	setsid(); /* obtain a new process group */
-
-	for (i=getdtablesize();i>=0;--i) 
-		close(i); /* close all descriptors */
-
-	i=open("/dev/null",O_RDWR); dup(i); dup(i); /* handle standart I/O */
-
-	umask(0); /* set newly created file permissions */
-
-	chdir(RUNNING_DIR); /* change running directory */
-
-	lfp=open(LOCK_FILE,O_RDWR|O_CREAT,0640);
-
-	if (lfp<0) {
-		error("Error: cannot open lock file");
-		exit(1); /* can not open */
-	}
-	if (lockf(lfp,F_TLOCK,0)<0) {
-		error("Error: cannot open lock file");
-		exit(0); /* can not lock */
-	}
-
-	/* first instance continues */
-	sprintf(str,"%d\n",getpid());
-	write(lfp,str,strlen(str)); /* record pid to lockfile */
-	signal(SIGCHLD,SIG_IGN); /* ignore child */
-	signal(SIGTSTP,SIG_IGN); /* ignore tty signals */
-	signal(SIGTTOU,SIG_IGN);
-	signal(SIGTTIN,SIG_IGN);
-	signal(SIGHUP,signal_handler); /* catch hangup signal */
-	signal(SIGTERM,signal_handler); /* catch kill signal */
-}
-
 int main(int argc, char **argv)
 {
 	int sockfd;  /* listen on sock_fd, new connection on new_fd */
+	int disc_sockfd; /* listen on disc_sockfd for discovery */
 	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
 	uint16_t port = 3434;
 	uint16_t listening_port;
@@ -152,14 +88,82 @@ int main(int argc, char **argv)
 		error("engine msg");
 		exit(1);
 	}
+
+	disc_sockfd = skrum_init_discovery();
+	if (disc_sockfd < 0) {
+		error("discovery engine msg");
+		exit(1);
+	}
 	
 	conf->port = listening_port;
 	conf->lfd  = sockfd;
 	conf->pid  = getpid();
+	conf->disc_fd = disc_sockfd;
+
+	_discovery_engine();
 
 	_msg_engine();
 
 	return 0;
+}
+
+static void _discovery_engine(void)
+{
+	skrum_msg_t *msg;
+	struct sockaddr_in cont_addr;
+
+	while(1)
+	{
+		info("waiting for multicast discovery msg");
+		if (skrum_receive_discovery_msg(conf->disc_fd, msg, &cont_addr) > 0){
+			_handle_discovery(msg, cont_addr);
+			continue;
+		}
+
+		error("recv discovery failed");
+	}
+	close(conf->disc_fd);
+	return;
+}
+
+static void _handle_discovery(skrum_msg_t *msg, struct sockaddr_in cont_addr)
+{
+	discovery_msg_t *dmsg;
+
+	if (!conf->registered || 
+			(cont_addr.sin_addr.s_addr != conf->controller_ip.sin_addr.s_addr)) {
+		/* set controller data if not registered */
+		conf->controller_ip = cont_addr;
+		dmsg = (discovery_msg_t *)msg->data;
+		conf->disc_port = dmsg->controller_port;
+
+		/* init request register message */
+		skrum_msg_t register_msg;
+		req_register_msg_t *req_msg; 
+		int fd, rc;
+
+		skrum_msg_t_init(&register_msg);
+		req_msg = malloc(sizeof(req_register_msg_t));
+		memset(req_msg, 0, sizeof(req_register_msg_t));
+		req_msg->my_port = conf->port;
+
+		register_msg.msg_type = REQUEST_REGISTER;
+		register_msg.data = req_msg;
+		
+		fd = skrum_open_msg_conn(&cont_addr);
+		if (fd < 0)
+			return;
+		
+		rc = skrum_send_msg(fd, &register_msg);
+		if (rc < 0)
+			return;
+		free(req_msg);
+		close(fd);
+
+	} else 
+		info("deamon already registered");
+
+	return;
 }
 
 static void _msg_engine(void)
@@ -185,7 +189,6 @@ static void _msg_engine(void)
 
 static void _handle_connection(int sock, struct sockaddr_in *cli)
 {
-	int rc = 0;
 	conn_t *arg = malloc(sizeof(conn_t));
 
 	arg->fd = sock;

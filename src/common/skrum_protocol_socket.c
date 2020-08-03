@@ -11,12 +11,45 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "src/common/logs.h"
 
 #include "src/common/skrum_protocol_socket.h"
 
 #define MAX_MSG_SIZE (1024*1024*1024)
+
+static int _skrum_connect(int __fd, struct sockaddr const *__addr, socklen_t __len);
+
+extern void skrum_setup_sockaddr(struct sockaddr_in *sin, uint16_t port, char *ip_addr)
+{
+	uint32_t s_addr;
+
+	memset(sin, 0, sizeof(struct sockaddr_in));
+	sin->sin_family = AF_INET;
+	sin->sin_port = htons(port);
+	if (inet_pton(AF_INET, ip_addr, &s_addr) < 0) {
+		perror("ip address conversion");
+		exit(1);
+	}
+	sin->sin_addr.s_addr = s_addr;
+}
+
+extern int skrum_init_discovery_engine(struct sockaddr_in *addr)
+{
+	int fd;
+
+	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+		return -1;
+
+	if (bind(fd, (struct sockaddr *)addr, sizeof(struct sockaddr)) \
+			== -1) {
+		return -1;
+	}
+
+	
+	return fd;
+}
 
 extern int skrum_init_msg_engine(struct sockaddr_in *addr)
 {
@@ -113,7 +146,7 @@ extern int skrum_send(int fd, char *buf, size_t size)
 	}
 
 	if (sent != size) {
-		error("sent size(%d) different from size(%d)",
+		error("sent size(%d) different from size(%ld)",
 				sent, size);
 		return -1;
 	}
@@ -144,11 +177,65 @@ extern int skrum_recv(int fd, char *buf, size_t size)
 	}
 
 	if (recved != size) {
-		error("received size(%d) different from size(%d)",
+		error("received size(%d) different from size(%ld)",
 				recved, size);
 		return -1;
 	}
 	close(fd);
 
 	return rc;
+}
+
+extern int skrum_open_stream(struct sockaddr_in *dest_addr)
+{
+	int fd, rc;
+
+	if ( (dest_addr->sin_family == 0) || (dest_addr->sin_port == 0) ){
+		error("error connecting, bad data: family = %u, port = %u",
+				dest_addr->sin_family, dest_addr->sin_port);
+		return -1;
+	}
+
+	if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+		error("error creating tcp socket");
+		return -1;
+	}
+	
+	rc = _skrum_connect(fd, (struct sockaddr const *)dest_addr, sizeof(*dest_addr));
+	if (rc < 0) {
+		perror("error while connecting to tcp remote socket");
+		close(fd);
+		return -1;
+	}
+
+	return fd;
+}
+
+static int _skrum_connect(int __fd, struct sockaddr const *__addr, socklen_t __len)
+{
+	int rc;
+
+	rc = connect(__fd, __addr, __len);
+	
+	return rc;
+}
+
+
+extern int skrum_open_datagram_conn(struct sockaddr_in *dest_addr)
+{
+	int fd;
+
+	if ( (dest_addr->sin_family == 0) || (dest_addr->sin_port == 0) ){
+		error("error connecting, bad data: family = %u, port = %u",
+				dest_addr->sin_family, dest_addr->sin_port);
+		return -1;
+	}
+
+	if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+		error("error creating tcp socket");
+		return -1;
+	}
+	/* no connection needed for datagram socket */
+
+	return fd;
 }

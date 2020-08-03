@@ -33,7 +33,7 @@ OSKRUMDFILES     := $(patsubst $(SSKRUMDDIR)/%.c,$(OSKRUMDDIR)/%.o,$(SSKRUMDFILE
 # skrumctld variables
 SSKRUMCTLDDIR := $(SDIR)/skrumctld
 OSKRUMCTLDDIR := $(BUILDDIR)/skrumctld
-SSKRUMCTLDFILES     := $(SSKRUMCTLDDIR)/
+SSKRUMCTLDFILES     := $(SSKRUMCTLDDIR)/skrumctld_req.c
 OSKRUMCTLDFILES     := $(patsubst $(SSKRUMCTLDDIR)/%.c,$(OSKRUMCTLDDIR)/%.o,$(SSKRUMCTLDFILES))
 
 # flags
@@ -54,9 +54,14 @@ $(OSKRUMDDIR):
 > mkdir -p $@
 
 # build skrumctld
-skrumctld: $(SSKRUMCTLDDIR)/skrumctld.c $(OCOMMONFILES) 
-> $(CC) $(CFLAGS) $(INCLUDE) $(LDLIBS) -o $@ $^ 
+skrumctld: $(SSKRUMCTLDDIR)/skrumctld.c $(OSKRUMCTLDFILES) $(OCOMMONFILES) 
+> $(CC) $(CFLAGS) $(LDLIBS) $(INCLUDE) $(LDLIBS) -o $@ $^ 
 
+$(OSKRUMCTLDFILES): $(SSKRUMCTLDFILES) | $(OSKRUMCTLDDIR)
+> $(CC) $(CFLAGS) $(INCLUDE) -c -o $@ $^
+
+$(OSKRUMCTLDDIR):
+> mkdir -p $@
 
 # build common objects
 $(OCOMMONFILES): $(OCOMMONDIR)/%.o: $(SCOMMONDIR)/%.c | $(OCOMMONDIR)

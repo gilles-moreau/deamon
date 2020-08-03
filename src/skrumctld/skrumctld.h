@@ -1,5 +1,5 @@
-#ifndef _SLURMD_H
-#define _SLURMD_H
+#ifndef _SLURMCTLD_H
+#define _SLURMCTLD_H
 
 #include <inttypes.h>
 #include <pthread.h>
@@ -13,7 +13,7 @@
 
 #include "src/common/logs.h"
 
-typedef struct skrumd_config {
+typedef struct skrumctld_config {
 	char         *prog;		/* Program basename		   */
 	char         ***argv;           /* pointer to argument vector      */
 	int          *argc;             /* pointer to argument count       */
@@ -27,16 +27,16 @@ typedef struct skrumd_config {
 	char         *node_topo_pattern;/* node's topology address pattern */
 	char         *logfile;		/* slurmd logfile, if any          */
 	uint16_t     port;		/* local slurmd port               */
-	int          lfd;		/* skrumd listen file descriptor   */
-	int          disc_fd;           /* skrumd discovery file desc      */
-	uint16_t     disc_port;		/* skrumd discovery port           */
-	struct sockaddr_in controller_ip;
+	int          lfd;		/* skrumctld listen file descriptor   */
+	int          disc_fd;           /* skrumctld discovery file desc      */
+	uint16_t     disc_port;		/* skrumctld discovery port           */
 	char         *mcast_ip;         /* multicast discovery ip addr     */	
+	struct sockaddr_in controller_ip; /* controller ip		   */
 	bool         registered;        /* boolean for registration        */
 	pid_t        pid;		/* server pid                      */
 	log_option_t log_opts;         /* current logging options          */
 	uint32_t     debug_level;	/* logging detail level            */
 	pthread_mutex_t config_mutex;	/* lock for slurmd_config access   */
-} skrumd_conf_t;	
+} skrumctld_conf_t;	
 
 #endif

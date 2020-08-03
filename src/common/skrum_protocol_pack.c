@@ -68,7 +68,7 @@ int unpack_msg(skrum_msg_t *msg, Buf buffer)
 			break;
 		default:
 			rc = 1;
-			error("No upack method for this msg type");
+			error("No unpack method for this msg type");
 	}
 
 	return rc;

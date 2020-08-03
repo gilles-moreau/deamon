@@ -8,6 +8,9 @@
 
 #define BACKLOG 10
 
+extern void skrum_setup_sockaddr(struct sockaddr_in *sin, uint16_t port, char *ip_addr);
+extern int skrum_init_discovery_engine(struct sockaddr_in *addr);
+extern int skrum_open_datagram_conn(struct sockaddr_in *dest_addr);
 extern int skrum_init_msg_engine(struct sockaddr_in *addr);
 extern int skrum_accept(int fd, struct sockaddr_in *addr);
 extern int skrum_msg_recvfrom(int fd, char **pbuf, size_t *size);
