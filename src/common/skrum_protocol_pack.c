@@ -31,6 +31,22 @@ void unpack_ints_msg (ints_msg_t **msg_ptr, Buf buffer)
 	unpack32(&msg->n_int32, buffer);
 }
 
+void pack_discovery_msg(discovery_msg_t *msg, Buf buffer)
+{
+	pack16(msg->controller_port, buffer);
+}
+
+void unpack_discovery_msg(discovery_msg_t **msg_ptr, Buf buffer)
+{
+	info("Unpacking discovery message");
+	discovery_msg_t *msg;
+	msg = malloc(sizeof(discovery_msg_t));
+	*msg_ptr = msg;
+
+	memset(msg, 0, sizeof(discovery_msg_t));
+	unpack16(&msg->controller_port, buffer);
+}
+
 int pack_msg(skrum_msg_t const *msg, Buf buffer)
 {
 	int rc = 0;
@@ -42,6 +58,10 @@ int pack_msg(skrum_msg_t const *msg, Buf buffer)
 	switch(msg->msg_type) {
 		case INTS_MSG:
 			pack_ints_msg((ints_msg_t *)msg->data, buffer);
+			pack32(msg->data_size, buffer);
+			break;
+		case MCAST_DISCOVERY:
+			pack_discovery_msg((discovery_msg_t *)msg->data, buffer);
 			pack32(msg->data_size, buffer);
 			break;
 		default:
@@ -65,6 +85,9 @@ int unpack_msg(skrum_msg_t *msg, Buf buffer)
 	switch (msg->msg_type) {
 		case INTS_MSG:
 			unpack_ints_msg((ints_msg_t **)&(msg->data), buffer);
+			break;
+		case MCAST_DISCOVERY:
+			unpack_discovery_msg((discovery_msg_t **)&(msg->data), buffer);
 			break;
 		default:
 			rc = 1;

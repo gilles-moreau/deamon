@@ -25,7 +25,7 @@ extern int skrum_init_msg_engine_port(uint16_t selected_port,
 
 	skrum_setup_sockaddr(&addr, selected_port, "0.0.0.0");
 	cc = skrum_init_msg_engine(&addr);
-	if ((cc < 0) && (selected_port = 0) && (errno = EADDRINUSE)){
+	if ((cc < 0) || (selected_port = 0) || (errno = EADDRINUSE)){
 		for (i=10001; i<65536; i++){
 			skrum_setup_sockaddr(&addr, i, "0.0.0.0");
 			cc = skrum_init_msg_engine(&addr);

@@ -26,12 +26,13 @@ typedef struct skrumctld_config {
 	char         *node_topo_addr;   /* node's topology address         */
 	char         *node_topo_pattern;/* node's topology address pattern */
 	char         *logfile;		/* slurmd logfile, if any          */
-	uint16_t     port;		/* local slurmd port               */
+	uint16_t     port;		/* local slurmctld port               */
 	int          lfd;		/* skrumctld listen file descriptor   */
 	int          disc_fd;           /* skrumctld discovery file desc      */
 	uint16_t     disc_port;		/* skrumctld discovery port           */
 	char         *mcast_ip;         /* multicast discovery ip addr     */	
 	struct sockaddr_in controller_ip; /* controller ip		   */
+	pthread_t    thread_id_discovery;  /* thread discovery id             */
 	bool         registered;        /* boolean for registration        */
 	pid_t        pid;		/* server pid                      */
 	log_option_t log_opts;         /* current logging options          */

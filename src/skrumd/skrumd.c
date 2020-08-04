@@ -100,8 +100,8 @@ int main(int argc, char **argv)
 	conf->pid  = getpid();
 	conf->disc_fd = disc_sockfd;
 
+	//skrum_thread_create(&conf->thread_id_discovery, _discovery_engine, NULL);
 	_discovery_engine();
-
 	_msg_engine();
 
 	return 0;
@@ -109,13 +109,13 @@ int main(int argc, char **argv)
 
 static void _discovery_engine(void)
 {
-	skrum_msg_t *msg;
+	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 	struct sockaddr_in cont_addr;
 
 	while(1)
 	{
 		info("waiting for multicast discovery msg");
-		if (skrum_receive_discovery_msg(conf->disc_fd, msg, &cont_addr) > 0){
+		if (skrum_receive_discovery_msg(conf->disc_fd, msg, &cont_addr) == 0){
 			_handle_discovery(msg, cont_addr);
 			continue;
 		}
@@ -123,19 +123,23 @@ static void _discovery_engine(void)
 		error("recv discovery failed");
 	}
 	close(conf->disc_fd);
+	free(msg);
 	return;
 }
 
 static void _handle_discovery(skrum_msg_t *msg, struct sockaddr_in cont_addr)
 {
 	discovery_msg_t *dmsg;
+	char cont_ip_addr[INET_ADDRSTRLEN];
 
 	if (!conf->registered || 
 			(cont_addr.sin_addr.s_addr != conf->controller_ip.sin_addr.s_addr)) {
 		/* set controller data if not registered */
-		conf->controller_ip = cont_addr;
 		dmsg = (discovery_msg_t *)msg->data;
-		conf->disc_port = dmsg->controller_port;
+		conf->controller_ip = msg->orig_addr;
+		inet_ntop(AF_INET, &conf->controller_ip.sin_addr, cont_ip_addr, sizeof(cont_ip_addr));
+		info("controller ip is %s", cont_ip_addr);
+		conf->cont_port = dmsg->controller_port;
 
 		/* init request register message */
 		skrum_msg_t register_msg;

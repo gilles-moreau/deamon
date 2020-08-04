@@ -40,7 +40,7 @@ extern int skrum_init_discovery(void)
 
 	mreq.imr_multiaddr.s_addr = s_addr;
 	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-	if ((rc = setsockopt(rc, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq))) < 0)
+	if ((rc = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq))) < 0)
 		perror("setsocketopt");
 
 	return fd;

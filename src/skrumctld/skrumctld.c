@@ -11,7 +11,10 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <net/if.h>
 #include <netdb.h>
+
+#include <sys/ioctl.h>
 
 #include "src/common/logs.h"
 #include "src/common/skrum_protocol_defs.h"
@@ -44,10 +47,10 @@ skrumctld_conf_t *conf;
 static int _skrumctld_init(void);
 static void _init_conf(void);
 static void _msg_engine(void);
-static void _discovery_engine(void);
+static void *_discovery_engine(void *arg);
+static int _setup_controller_addr(int fd, struct sockaddr_in *addr);
 static void _handle_connection(int sock, struct sockaddr_in *cli);
 static void *_service_connection(void *arg);
-static void _handle_discovery(skrum_msg_t *msg, struct sockaddr_in cont_addr);
 static void _increment_thread_cnt(void);
 static void _decrement_thread_cnt(void);
 
@@ -97,20 +100,23 @@ int main(int argc, char **argv)
 	conf->pid  = getpid();
 	conf->disc_fd = disc_sockfd;
 
-	_discovery_engine();
+	skrum_thread_create(&conf->thread_id_discovery, _discovery_engine, NULL);
 	_msg_engine();
 
 	return 0;
 }
 
-static void _discovery_engine(void)
+static void *_discovery_engine(void *arg)
 {
+	struct sockaddr_in addr;
 	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 	discovery_msg_t *disc_msg = malloc(sizeof(discovery_msg_t));
 
 	skrum_msg_t_init(msg);
 
-	msg->msg_type = REQUEST_REGISTER; 
+	msg->msg_type = MCAST_DISCOVERY; 
+	_setup_controller_addr(conf->lfd, &addr);
+	msg->orig_addr = addr;
 	disc_msg->controller_port = 3434;
 	msg->data = disc_msg;
 	
@@ -118,10 +124,30 @@ static void _discovery_engine(void)
 		info("sending discovery multicast");
 		if (skrum_send_discovery_msg(msg) < 0) 
 			error("error sending discovery message");
-		usleep(10000);
+		usleep(1000000);
 	}
 
-	return;
+	free(msg);
+	free(disc_msg);
+	return NULL;
+}
+
+static int _setup_controller_addr(int fd, struct sockaddr_in *addr)
+{
+	int rc = 0;
+	struct ifreq ifr;
+
+	ifr.ifr_addr.sa_family = AF_INET;
+	strncpy(ifr.ifr_name, "lo", IFNAMSIZ-1);
+	if ((rc = ioctl(fd, SIOCGIFADDR, &ifr)) < 0)
+	       error("ioctl, get ip address");
+
+	memset(addr, 0, sizeof(struct sockaddr_in));
+	addr->sin_family = AF_INET;
+	addr->sin_port = htons(conf->port);
+	addr->sin_addr = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+
+	return rc;
 }
 
 static void _msg_engine(void)

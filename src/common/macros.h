@@ -64,13 +64,13 @@
 #define skrum_thread_create(id, func, arg)				        \
 	do {								        \
 		pthread_attr_t attr;                                            \
-			int err;                                                \
-			skrum_attr_init(&attr);                                 \
-			err = pthread_create(id, &attr, func, arg);             \
-			if (err) {                                              \
-				errno = err;                                    \
-				fatal("%s: pthread_create error %m", __func__); \
-			}                                                       \
+		int err;                                                \
+		skrum_attr_init(&attr);                                 \
+		err = pthread_create(id, &attr, func, arg);             \
+		if (err) {                                              \
+			errno = err;                                    \
+			fatal("%s: pthread_create error %m", __func__); \
+		}                                                       \
 		skrum_attr_destroy(&attr);                                      \
 	} while (0)
 

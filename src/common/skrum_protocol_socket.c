@@ -38,12 +38,19 @@ extern void skrum_setup_sockaddr(struct sockaddr_in *sin, uint16_t port, char *i
 extern int skrum_init_discovery_engine(struct sockaddr_in *addr)
 {
 	int fd;
+	int enable = 1;
 
-	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		perror("socket discovery");
 		return -1;
+	}
+
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+		    perror("setsockopt(SO_REUSEADDR) failed");
 
 	if (bind(fd, (struct sockaddr *)addr, sizeof(struct sockaddr)) \
 			== -1) {
+		perror("bind discovery");
 		return -1;
 	}
 
