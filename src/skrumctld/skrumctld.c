@@ -24,6 +24,7 @@
 #include "src/common/skrum_discovery_api.h"
 #include "src/common/macros.h"
 #include "src/common/xcpuinfo.h"
+#include "src/common/list.h"
 
 #include "src/skrumctld/skrumctld.h"
 #include "src/skrumctld/skrumctld_req.h"
@@ -31,6 +32,8 @@
 #define LOG_FILE "skrumctld.log"
 #define MAXHOSTNAMELEN 1024
 #define CONT_MAXTHREADS 4
+
+#define NODE_REGISTRATION_TIMEOUT 10
 
 typedef struct connection_arg {
 	int fd;
@@ -43,12 +46,14 @@ static pthread_mutex_t cont_active_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cont_active_cond  = PTHREAD_COND_INITIALIZER;
 
 skrumctld_conf_t *conf;
+List cluster_node_list = NULL;
 
 static int _skrumctld_init(void);
 static void _init_conf(void);
 static void _msg_engine(void);
 static void *_discovery_engine(void *arg);
 static int _setup_controller_addr(int fd, struct sockaddr_in *addr);
+static void _update_node_list(List node_list);
 static void _handle_connection(int sock, struct sockaddr_in *cli);
 static void *_service_connection(void *arg);
 static void _increment_thread_cnt(void);
@@ -120,11 +125,12 @@ static void *_discovery_engine(void *arg)
 	disc_msg->controller_port = 3434;
 	msg->data = disc_msg;
 	
+	info("sending discovery multicast");
 	while(1) {
-		info("sending discovery multicast");
 		if (skrum_send_discovery_msg(msg) < 0) 
 			error("error sending discovery message");
 		usleep(1000000);
+		_update_node_list(cluster_node_list);
 	}
 
 	free(msg);
@@ -192,7 +198,7 @@ static void *_service_connection(void *arg)
 	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 
 	skrum_msg_t_init(msg);
-	if ((rc = skrum_receive_msg(conn->fd, msg, conn->cli_addr)) < 0){
+	if ((rc = skrum_receive_msg(conn->fd, msg)) < 0){
 		error("recv message");
 		return NULL;
 	}
@@ -233,6 +239,8 @@ static int _skrumctld_init(void)
 		error("failed to get hwloc info");
 	}
 
+	cluster_node_list = list_create(NULL);
+
 	return rc;
 }
 
@@ -258,58 +266,22 @@ static void _init_conf(void)
 	return;
 }
 
-//int main(int argc, char **argv)
-//{
-//	int sockfd;  /* listen on sock_fd, new connection on new_fd */
-//	struct addrinfo hints, *res;
-//	int status;
-//
-//	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
-//
-//	skrum_msg_t msg;
-//	ints_msg_t *ints_msg;
-//	//daemonize();
-//	
-//	// Init logs
-//	init_log(argv[0], log_opt, LOG_FILE);
-//
-//	memset(&hints, 0, sizeof(struct addrinfo));
-//	hints.ai_family = AF_UNSPEC;
-//	hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
-//	hints.ai_flags = AF_INET; // fill in my IP for me
-//
-//	info("Starting connection");
-//	
-//	if ((status = getaddrinfo("127.0.0.1" , PORT, &hints, &res)) != 0) {
-//		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
-//		return 2;
-//	}
-//
-//	if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
-//		perror("socket");
-//		exit(1);
-//	}
-//	
-//	if ((status = connect(sockfd, res->ai_addr, res->ai_addrlen)) == -1) {
-//		perror("connect");
-//		exit(1);
-//	}
-//
-//	/*
-//	 * Init message
-//	 */	
-//	msg.msg_type = INTS_MSG;
-//	msg.orig_addr = *(struct sockaddr_in *)res->ai_addr;
-//	ints_msg = malloc(sizeof(ints_msg_t));
-//	ints_msg->n_int16 = 16;	
-//	ints_msg->n_int32 = 32;
-//	msg.data = ints_msg;
-//	msg.data_size = sizeof(ints_msg_t);
-//
-//	if (skrum_send_msg(sockfd, &msg) < 0) {
-//		perror("Skrum send");
-//		exit(1);
-//	}	
-//
-//	return 0;
-//}
+static void _update_node_list(List node_list)
+{
+	ListIterator node_itr;
+	skrum_cluster_node_t *node;
+	time_t update_ts = time(NULL);
+
+	node_itr = list_iterator_create(node_list);
+	while((node = (skrum_cluster_node_t *)list_next(node_itr))) {	
+		if ((update_ts - node->registration_ts) < 
+				NODE_REGISTRATION_TIMEOUT) {
+			list_remove(node_itr);
+			info("node %d has been removed", node->cluster_node_id);
+		}
+	}
+	info("node list updated");
+
+	list_iterator_destroy(node_itr);
+	return;
+}

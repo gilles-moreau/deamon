@@ -15,7 +15,6 @@
 
 #include "src/common/skrum_protocol_api.h"
 
-
 extern int skrum_init_msg_engine_port(uint16_t selected_port, 
 		uint16_t *actual_port)
 {
@@ -66,14 +65,12 @@ extern int skrum_send_msg(int fd, skrum_msg_t *msg)
 	return rc;
 }
 
-int skrum_receive_msg(int fd, skrum_msg_t *msg, struct sockaddr_in *orig_addr)
+int skrum_receive_msg(int fd, skrum_msg_t *msg)
 {
 	int rc;
 	char *buf = NULL;
 	int buflen = 0;
 	Buf buffer;
-
-	memcpy(&msg->orig_addr, orig_addr, sizeof(struct sockaddr_in));
 
 	/* needed by skrumd_req to send back message */
 	msg->conn_fd = fd;
@@ -109,3 +106,20 @@ extern int skrum_open_msg_conn(struct sockaddr_in *dest_addr)
 	
 	return fd;
 }
+
+extern int skrum_send_recv_msg(struct sockaddr_in dest_addr, 
+		skrum_msg_t *request_msg, skrum_msg_t *response_msg)
+{
+	int rc = -1;
+	int fd;
+
+	if ((fd = skrum_open_msg_conn(&dest_addr)) < 0)
+		return rc;
+
+	if (skrum_send_msg(fd, request_msg) >= 0)
+		rc = skrum_receive_msg(fd, response_msg);
+	
+	close(fd);
+	return rc;
+}
+

@@ -13,24 +13,6 @@
 
 #include "src/common/skrum_protocol_pack.h"
 
-void pack_ints_msg (ints_msg_t *msg, Buf buffer)
-{
-	pack16(msg->n_int16, buffer);
-	pack32(msg->n_int32, buffer);
-}
-
-void unpack_ints_msg (ints_msg_t **msg_ptr, Buf buffer)
-{
-	info("Unpacking int message");
-	ints_msg_t *msg;
-	msg = malloc(sizeof(ints_msg_t));
-	*msg_ptr = msg;
-
-	memset(msg, 0, sizeof(ints_msg_t));
-	unpack16(&msg->n_int16, buffer);
-	unpack32(&msg->n_int32, buffer);
-}
-
 void pack_discovery_msg(discovery_msg_t *msg, Buf buffer)
 {
 	pack16(msg->controller_port, buffer);
@@ -38,7 +20,6 @@ void pack_discovery_msg(discovery_msg_t *msg, Buf buffer)
 
 void unpack_discovery_msg(discovery_msg_t **msg_ptr, Buf buffer)
 {
-	info("Unpacking discovery message");
 	discovery_msg_t *msg;
 	msg = malloc(sizeof(discovery_msg_t));
 	*msg_ptr = msg;
@@ -47,21 +28,56 @@ void unpack_discovery_msg(discovery_msg_t **msg_ptr, Buf buffer)
 	unpack16(&msg->controller_port, buffer);
 }
 
+void pack_request_registration_msg(req_register_msg_t *msg, Buf buffer)
+{
+	pack16(msg->my_port, buffer);
+	pack16(msg->my_id, buffer);
+}
+
+void unpack_request_registration_msg(req_register_msg_t **msg_ptr, Buf buffer)
+{
+	req_register_msg_t *msg;
+	msg = malloc(sizeof(req_register_msg_t));
+	*msg_ptr = msg;
+
+	memset(msg, 0, sizeof(req_register_msg_t));
+	unpack16(&msg->my_port, buffer);
+	unpack16(&msg->my_id, buffer);
+}
+
+void pack_response_registration_msg(resp_register_msg_t *msg, Buf buffer)
+{
+	pack16(msg->my_id, buffer);
+}
+
+void unpack_response_registration_msg(resp_register_msg_t **msg_ptr, Buf buffer)
+{
+	resp_register_msg_t *msg;
+	msg = malloc(sizeof(resp_register_msg_t));
+	*msg_ptr = msg;
+
+	memset(msg, 0, sizeof(req_register_msg_t));
+	unpack16(&msg->my_id, buffer);
+}
+
 int pack_msg(skrum_msg_t const *msg, Buf buffer)
 {
 	int rc = 0;
-	info("Packing message");
 
 	pack16(msg->msg_type, buffer);
 	pack_sockaddr(&msg->orig_addr, buffer);
 
 	switch(msg->msg_type) {
-		case INTS_MSG:
-			pack_ints_msg((ints_msg_t *)msg->data, buffer);
-			pack32(msg->data_size, buffer);
-			break;
 		case MCAST_DISCOVERY:
 			pack_discovery_msg((discovery_msg_t *)msg->data, buffer);
+			pack32(msg->data_size, buffer);
+			break;
+		case REQUEST_NODE_REGISTRATION:
+			pack_request_registration_msg((req_register_msg_t *)msg->data, buffer);
+			pack32(msg->data_size, buffer);
+			break;
+		case RESPONSE_NODE_REGISTRATION:
+			pack_response_registration_msg((resp_register_msg_t *)msg->data, buffer);
 			pack32(msg->data_size, buffer);
 			break;
 		default:
@@ -83,11 +99,16 @@ int unpack_msg(skrum_msg_t *msg, Buf buffer)
 	unpack_sockaddr(&msg->orig_addr, buffer);
 
 	switch (msg->msg_type) {
-		case INTS_MSG:
-			unpack_ints_msg((ints_msg_t **)&(msg->data), buffer);
-			break;
 		case MCAST_DISCOVERY:
 			unpack_discovery_msg((discovery_msg_t **)&(msg->data), buffer);
+			break;
+		case REQUEST_NODE_REGISTRATION:
+			unpack_request_registration_msg((req_register_msg_t **)msg->data, buffer);
+			pack32(msg->data_size, buffer);
+			break;
+		case RESPONSE_NODE_REGISTRATION:
+			unpack_response_registration_msg((resp_register_msg_t **)msg->data, buffer);
+			pack32(msg->data_size, buffer);
 			break;
 		default:
 			rc = 1;

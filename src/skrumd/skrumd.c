@@ -41,7 +41,7 @@ static int active_threads = 0;
 static pthread_mutex_t active_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t active_cond  = PTHREAD_COND_INITIALIZER;
 
-skrumd_conf_t *conf;
+skrumd_conf_t *conf = NULL;
 static pthread_mutex_t config_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int _skrumd_init(void);
@@ -49,7 +49,7 @@ static void _init_conf(void);
 static void _msg_engine(void);
 static void _discovery_engine(void);
 static void _handle_connection(int sock, struct sockaddr_in *cli);
-static void _handle_discovery(skrum_msg_t *msg, struct sockaddr_in cont_addr);
+static void _handle_discovery(skrum_msg_t *msg);
 static void *_service_connection(void *arg);
 static void _increment_thread_cnt(void);
 static void _decrement_thread_cnt(void);
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 {
 	int sockfd;  /* listen on sock_fd, new connection on new_fd */
 	int disc_sockfd; /* listen on disc_sockfd for discovery */
-	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
+	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_QUIET, LOG_LEVEL_QUIET };
 	uint16_t port = 3434;
 	uint16_t listening_port;
 
@@ -116,7 +116,7 @@ static void _discovery_engine(void)
 	{
 		info("waiting for multicast discovery msg");
 		if (skrum_receive_discovery_msg(conf->disc_fd, msg, &cont_addr) == 0){
-			_handle_discovery(msg, cont_addr);
+			_handle_discovery(msg);
 			continue;
 		}
 
@@ -127,45 +127,33 @@ static void _discovery_engine(void)
 	return;
 }
 
-static void _handle_discovery(skrum_msg_t *msg, struct sockaddr_in cont_addr)
+static void _handle_discovery(skrum_msg_t *msg)
 {
 	discovery_msg_t *dmsg;
-	char cont_ip_addr[INET_ADDRSTRLEN];
+	skrum_msg_t req_register_msg;
+	skrum_msg_t resp_register_msg;
+	req_register_msg_t req_reg_msg; 
+	resp_register_msg_t *resp_reg_msg;
 
-	if (!conf->registered || 
-			(cont_addr.sin_addr.s_addr != conf->controller_ip.sin_addr.s_addr)) {
-		/* set controller data if not registered */
-		dmsg = (discovery_msg_t *)msg->data;
-		conf->controller_ip = msg->orig_addr;
-		inet_ntop(AF_INET, &conf->controller_ip.sin_addr, cont_ip_addr, sizeof(cont_ip_addr));
-		info("controller ip is %s", cont_ip_addr);
-		conf->cont_port = dmsg->controller_port;
+	/* set controller data if not registered */
+	dmsg = (discovery_msg_t *)msg->data;
+	conf->controller_ip = msg->orig_addr;
+	conf->cont_port = dmsg->controller_port;
 
-		/* init request register message */
-		skrum_msg_t register_msg;
-		req_register_msg_t *req_msg; 
-		int fd, rc;
+	/* init request registration message */
+	skrum_msg_t_init(&req_register_msg);
 
-		skrum_msg_t_init(&register_msg);
-		req_msg = malloc(sizeof(req_register_msg_t));
-		memset(req_msg, 0, sizeof(req_register_msg_t));
-		req_msg->my_port = conf->port;
+	req_register_msg.msg_type = REQUEST_NODE_REGISTRATION;
+	req_reg_msg.my_port = conf->port;
+	req_reg_msg.my_id = time(NULL);
+	req_register_msg.data = &req_reg_msg;
 
-		register_msg.msg_type = REQUEST_REGISTER;
-		register_msg.data = req_msg;
-		
-		fd = skrum_open_msg_conn(&cont_addr);
-		if (fd < 0)
-			return;
-		
-		rc = skrum_send_msg(fd, &register_msg);
-		if (rc < 0)
-			return;
-		free(req_msg);
-		close(fd);
+	if (skrum_send_recv_msg(conf->controller_ip, 
+				&req_register_msg, &resp_register_msg) < 0)
+		error("send register error");
+	resp_reg_msg = (resp_register_msg_t *)resp_register_msg.data;
 
-	} else 
-		info("deamon already registered");
+	conf->cluster_id = resp_reg_msg->my_id;
 
 	return;
 }
@@ -212,7 +200,7 @@ static void *_service_connection(void *arg)
 	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 
 	skrum_msg_t_init(msg);
-	if ((rc = skrum_receive_msg(conn->fd, msg, conn->cli_addr)) < 0){
+	if ((rc = skrum_receive_msg(conn->fd, msg)) < 0){
 		error("recv message");
 		return NULL;
 	}
@@ -272,6 +260,7 @@ static void _init_conf(void)
 	conf->log_opts = log_opt;
 	conf->debug_level = LOG_LEVEL_DEBUG;
 	conf->lfd = -1;
+	conf->cluster_id = -1;
 
 	skrum_mutex_init(&conf->config_mutex);
 	

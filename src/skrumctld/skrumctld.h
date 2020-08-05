@@ -12,6 +12,7 @@
 #include <netinet/in.h>
 
 #include "src/common/logs.h"
+#include "src/common/list.h"
 
 typedef struct skrumctld_config {
 	char         *prog;		/* Program basename		   */
@@ -33,11 +34,16 @@ typedef struct skrumctld_config {
 	char         *mcast_ip;         /* multicast discovery ip addr     */	
 	struct sockaddr_in controller_ip; /* controller ip		   */
 	pthread_t    thread_id_discovery;  /* thread discovery id             */
-	bool         registered;        /* boolean for registration        */
 	pid_t        pid;		/* server pid                      */
 	log_option_t log_opts;         /* current logging options          */
 	uint32_t     debug_level;	/* logging detail level            */
 	pthread_mutex_t config_mutex;	/* lock for slurmd_config access   */
 } skrumctld_conf_t;	
+
+typedef struct cluster_node {
+	uint16_t     cluster_node_id;
+	time_t       registration_ts;  /* last registration timestamp      */
+	uint16_t     rpc_port;         /* rpc listening port               */
+} skrum_cluster_node_t;
 
 #endif
