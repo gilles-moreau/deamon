@@ -33,8 +33,8 @@ typedef struct skrumd_config {
 	struct sockaddr_in controller_ip;  /* skrumctld ip addr               */
 	uint16_t     cont_port;            /* skrumctld port                  */
 	char         *mcast_ip;            /* multicast discovery ip addr     */	
-	uint16_t     cluster_id;           /* skrumd id inside the cluster    */
-	bool         registered;           /* boolean for registration        */
+	int16_t      cluster_id;           /* skrumd id inside the cluster    */
+	time_t       ctrlr_ts;             /* controller startup timestamp    */
 	pthread_t    thread_id_discovery;  /* thread discovery id             */
 	pid_t        pid;		   /* server pid                      */
 	log_option_t log_opts;             /* current logging options         */

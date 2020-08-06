@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <time.h>
 #include <string.h>
 #include <stddef.h>
 #include <pthread.h>
@@ -106,10 +107,19 @@ static void _log_msg(log_level_t level, const char *fmt, va_list args)
 {
 	char *pfx = "";
 	char *pretty_fmt;
-	const char *fmt_template = "%s %s\n";
-	int len;
+	const char *fmt_template = "[%s] - %s %s\n";
+	time_t ltime;
+	char *pretty_time;
+	int len, i;
 
 	skrum_mutex_lock(&log_lock);
+	ltime = time(NULL);
+	pretty_time = asctime(localtime(&ltime));
+
+	i = 0;
+	while (*(pretty_time+i) != '\0')
+		i++;
+	pretty_time[i-1] = '\0';
 
 	if (log->opts.stderr_level > level) {
 		switch(level) {
@@ -143,12 +153,12 @@ static void _log_msg(log_level_t level, const char *fmt, va_list args)
 		}
 	}
 
-	len = snprintf(NULL, 0, fmt_template, pfx, fmt); 
+	len = snprintf(NULL, 0, fmt_template, pretty_time, pfx, fmt); 
 	pretty_fmt = malloc(len+1);
 	if (!pretty_fmt)
 		perror("malloc");	
 
-	snprintf(pretty_fmt, len+1, fmt_template, pfx, fmt);
+	snprintf(pretty_fmt, len+1, fmt_template, pretty_time, pfx, fmt);
 
 	if (level < log->opts.stderr_level) {
 		fflush(stdout);

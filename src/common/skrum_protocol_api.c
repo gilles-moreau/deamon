@@ -45,7 +45,6 @@ extern int skrum_send_msg(int fd, skrum_msg_t *msg)
 	/*
 	 * Init buffer
 	 */
-	info("Initializing buffer of size %d", BUF_SIZE);
 	buffer = init_buf(BUF_SIZE);
 
 	/* 
@@ -69,27 +68,21 @@ int skrum_receive_msg(int fd, skrum_msg_t *msg)
 {
 	int rc;
 	char *buf = NULL;
-	int buflen = 0;
+	uint32_t buflen = 0;
 	Buf buffer;
 
 	/* needed by skrumd_req to send back message */
 	msg->conn_fd = fd;
 
-	info("Receiving message");
-	/*
-	 * Recv message. buf is allocated inside
-	 */
+	debug("Receiving message");
+	/* Recv message. buf is allocated inside */
 	rc = skrum_msg_recvfrom(fd, &buf, &buflen);
 	if (rc < 0)
 		error("error while receiving message");
 
-	/*
-	 * Create buffer
-	 */
+	/* Create buffer */
 	buffer = create_buf(buf, buflen);
-	/* 
-	 * Unpack message
-	 */
+	/* Unpack message */
 	rc = unpack_msg(msg, buffer);
 
 	free_buf(buffer);
@@ -116,7 +109,7 @@ extern int skrum_send_recv_msg(struct sockaddr_in dest_addr,
 	if ((fd = skrum_open_msg_conn(&dest_addr)) < 0)
 		return rc;
 
-	if (skrum_send_msg(fd, request_msg) >= 0)
+	if (skrum_send_msg(fd, request_msg) >= 0) 
 		rc = skrum_receive_msg(fd, response_msg);
 	
 	close(fd);

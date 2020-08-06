@@ -14,9 +14,9 @@ extern int skrum_open_datagram_conn(struct sockaddr_in *dest_addr);
 extern int skrum_open_stream(struct sockaddr_in *dest_addr);
 extern int skrum_init_msg_engine(struct sockaddr_in *addr);
 extern int skrum_accept(int fd, struct sockaddr_in *addr);
-extern int skrum_msg_recvfrom(int fd, char **pbuf, size_t *size);
-extern int skrum_msg_sendto(int fd, char *pbuf, size_t size);
-extern int skrum_send(int fd, char *buf, size_t size);
-extern int skrum_recv(int fd, char *buf, size_t size);
+extern int skrum_msg_recvfrom(int fd, char **pbuf, uint32_t *size);
+extern int skrum_msg_sendto(int fd, char *pbuf, uint32_t size);
+extern int skrum_send(int fd, char *buf, uint32_t size);
+extern int skrum_recv(int fd, char *buf, uint32_t size);
 
 #endif

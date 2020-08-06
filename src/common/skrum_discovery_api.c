@@ -81,7 +81,6 @@ extern int skrum_receive_discovery_msg(int fd, skrum_msg_t *msg,
 	int addrlen;
 	Buf buffer;
 
-	info("Receiving udp message");
 	/* receive message */
 	addrlen = sizeof(cont_addr);
 	rc = recvfrom(fd, buf, UDP_BUF_SIZE, 0, \

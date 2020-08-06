@@ -49,7 +49,6 @@ static void _init_conf(void);
 static void _msg_engine(void);
 static void _discovery_engine(void);
 static void _handle_connection(int sock, struct sockaddr_in *cli);
-static void _handle_discovery(skrum_msg_t *msg);
 static void *_service_connection(void *arg);
 static void _increment_thread_cnt(void);
 static void _decrement_thread_cnt(void);
@@ -112,11 +111,11 @@ static void _discovery_engine(void)
 	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 	struct sockaddr_in cont_addr;
 
+	info("discovery engine msg on");
 	while(1)
 	{
-		info("waiting for multicast discovery msg");
 		if (skrum_receive_discovery_msg(conf->disc_fd, msg, &cont_addr) == 0){
-			_handle_discovery(msg);
+			skrumd_req(msg);
 			continue;
 		}
 
@@ -127,37 +126,6 @@ static void _discovery_engine(void)
 	return;
 }
 
-static void _handle_discovery(skrum_msg_t *msg)
-{
-	discovery_msg_t *dmsg;
-	skrum_msg_t req_register_msg;
-	skrum_msg_t resp_register_msg;
-	req_register_msg_t req_reg_msg; 
-	resp_register_msg_t *resp_reg_msg;
-
-	/* set controller data if not registered */
-	dmsg = (discovery_msg_t *)msg->data;
-	conf->controller_ip = msg->orig_addr;
-	conf->cont_port = dmsg->controller_port;
-
-	/* init request registration message */
-	skrum_msg_t_init(&req_register_msg);
-
-	req_register_msg.msg_type = REQUEST_NODE_REGISTRATION;
-	req_reg_msg.my_port = conf->port;
-	req_reg_msg.my_id = time(NULL);
-	req_register_msg.data = &req_reg_msg;
-
-	if (skrum_send_recv_msg(conf->controller_ip, 
-				&req_register_msg, &resp_register_msg) < 0)
-		error("send register error");
-	resp_reg_msg = (resp_register_msg_t *)resp_register_msg.data;
-
-	conf->cluster_id = resp_reg_msg->my_id;
-
-	return;
-}
-
 static void _msg_engine(void)
 {
 	struct sockaddr_in *cli = malloc(sizeof(struct sockaddr_in));
@@ -165,7 +133,7 @@ static void _msg_engine(void)
 
 	while(1)
 	{
-		info("Waiting for new connection");
+		info("waiting for new connection");
 		if ((sock = skrum_accept(conf->lfd, cli)) >= 0){
 			_handle_connection(sock, cli);
 			continue;
@@ -260,7 +228,8 @@ static void _init_conf(void)
 	conf->log_opts = log_opt;
 	conf->debug_level = LOG_LEVEL_DEBUG;
 	conf->lfd = -1;
-	conf->cluster_id = -1;
+	conf->cluster_id = 0;
+	conf->ctrlr_ts = 0;
 
 	skrum_mutex_init(&conf->config_mutex);
 	

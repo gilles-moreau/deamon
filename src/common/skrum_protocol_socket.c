@@ -88,15 +88,16 @@ extern int skrum_accept(int fd, struct sockaddr_in *addr)
 	return new_fd;
 }
 
-extern int skrum_msg_recvfrom(int fd, char **pbuf, size_t *lenp)
+extern int skrum_msg_recvfrom(int fd, char **pbuf, uint32_t *lenp)
 {
 	ssize_t len;
 	uint32_t msglen;
 
-	len = skrum_recv(fd, (char *)msglen, sizeof(msglen));
+	len = skrum_recv(fd, (char *)&msglen, sizeof(msglen));
 	if (len < ((ssize_t) sizeof(msglen))){
 		return -1;
 	}
+	msglen = ntohl(msglen);
 
 	if (msglen > MAX_MSG_SIZE)
 		error("exceeded max message length");
@@ -116,21 +117,21 @@ extern int skrum_msg_recvfrom(int fd, char **pbuf, size_t *lenp)
 	return (ssize_t) msglen;
 }
 
-extern int skrum_msg_sendto(int fd, char *pbuf, size_t size)
+extern int skrum_msg_sendto(int fd, char *pbuf, uint32_t size)
 {
 	int len;
 	uint32_t usize;
 
 	usize = htonl(size);
 
-	if ((len = skrum_send(fd, (char *)&usize, sizeof(size))) < 0)
+	if ((len = skrum_send(fd, (char *)&usize, sizeof(usize))) < 0)
 		return len;
 	if ((len = skrum_send(fd, pbuf, size)) < 0)
 		return len;
 	return len;
 }
 
-extern int skrum_send(int fd, char *buf, size_t size)
+extern int skrum_send(int fd, char *buf, uint32_t size)
 {
 	int rc;
 	int sent = 0;
@@ -153,15 +154,15 @@ extern int skrum_send(int fd, char *buf, size_t size)
 	}
 
 	if (sent != size) {
-		error("sent size(%d) different from size(%ld)",
+		error("sent size(%d) different from size(%d)",
 				sent, size);
 		return -1;
 	}
-	close(fd);
+
 	return rc;
 }
 
-extern int skrum_recv(int fd, char *buf, size_t size)
+extern int skrum_recv(int fd, char *buf, uint32_t size)
 {
 	int rc;
 	int recved = 0;
@@ -171,7 +172,7 @@ extern int skrum_recv(int fd, char *buf, size_t size)
 		if (rc < 0) {
 			if (rc == EINTR)
 				continue;
-			error("unknown error in send");
+			perror("error in send");
 			return -1;
 		}
 
@@ -184,11 +185,10 @@ extern int skrum_recv(int fd, char *buf, size_t size)
 	}
 
 	if (recved != size) {
-		error("received size(%d) different from size(%ld)",
+		error("received size(%d) different from size(%d)",
 				recved, size);
 		return -1;
 	}
-	close(fd);
 
 	return rc;
 }

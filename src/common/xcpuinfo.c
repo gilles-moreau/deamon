@@ -43,7 +43,7 @@ extern int xcpuinfo_hwloc_topo_get (
 
 	int depth = 0;
 
-	info("hwloc_topology_init");
+	debug("hwloc_topology_init");
 	if (hwloc_topology_init(&topology)) {
 		debug("hwloc_topology_init() failed.");
 		return XCPUINFO_ERROR;
@@ -65,7 +65,6 @@ extern int xcpuinfo_hwloc_topo_get (
 	hwloc_topology_set_type_filter(topology, HWLOC_OBJ_MISC,
 			HWLOC_TYPE_FILTER_KEEP_NONE);
 
-	info("hwloc_topology_load");
 	if (hwloc_topology_load(topology)) {
 		debug("hwloc_topology_load() failed");
 		return XCPUINFO_ERROR;
@@ -99,7 +98,6 @@ extern int xcpuinfo_hwloc_topo_get (
 	/* number of threads per cores */
 	nobj[PU] = actual_cpus/nobj[CORE];
 
-	info("hwloc_topology_destroy");
 	hwloc_topology_destroy(topology);
 
 	/* set output values */

@@ -115,14 +115,14 @@ static void *_discovery_engine(void *arg)
 {
 	struct sockaddr_in addr;
 	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
-	discovery_msg_t *disc_msg = malloc(sizeof(discovery_msg_t));
+	controller_info_msg_t *disc_msg = malloc(sizeof(controller_info_msg_t));
 
 	skrum_msg_t_init(msg);
 
-	msg->msg_type = MCAST_DISCOVERY; 
+	msg->msg_type = MCAST_CONTROLLER_INFO; 
 	_setup_controller_addr(conf->lfd, &addr);
 	msg->orig_addr = addr;
-	disc_msg->controller_port = 3434;
+	disc_msg->ctrlr_port = 3434;
 	msg->data = disc_msg;
 	
 	info("sending discovery multicast");
@@ -204,6 +204,9 @@ static void *_service_connection(void *arg)
 	}
 	skrumctld_req(msg);
 
+	if ((conn->fd > 0) && (close(conn->fd) < 0))
+		error("%s: error close fd", __func__);
+
 	free(msg);
 	_decrement_thread_cnt();
 	return NULL;
@@ -274,13 +277,12 @@ static void _update_node_list(List node_list)
 
 	node_itr = list_iterator_create(node_list);
 	while((node = (skrum_cluster_node_t *)list_next(node_itr))) {	
-		if ((update_ts - node->registration_ts) < 
+		if ((update_ts - node->registration_ts) > 
 				NODE_REGISTRATION_TIMEOUT) {
 			list_remove(node_itr);
 			info("node %d has been removed", node->cluster_node_id);
 		}
 	}
-	info("node list updated");
 
 	list_iterator_destroy(node_itr);
 	return;
