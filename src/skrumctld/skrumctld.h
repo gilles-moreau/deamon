@@ -33,6 +33,7 @@ typedef struct skrumctld_config {
 	uint16_t     disc_port;		/* skrumctld discovery port           */
 	char         *mcast_ip;         /* multicast discovery ip addr     */	
 	struct sockaddr_in controller_ip; /* controller ip		   */
+	time_t       ctrlr_startup_ts;  /* controller startup time         */
 	pthread_t    thread_id_discovery;  /* thread discovery id             */
 	pid_t        pid;		/* server pid                      */
 	log_option_t log_opts;         /* current logging options          */

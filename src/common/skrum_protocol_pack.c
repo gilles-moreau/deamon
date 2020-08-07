@@ -96,7 +96,7 @@ int pack_msg(skrum_msg_t const *msg, Buf buffer)
 			pack32(msg->data_size, buffer);
 			break;
 		case RESPONSE_PONG:
-			unpack_deamon_pong_msg((deamon_pong_msg_t *)msg->data, buffer);
+			pack_deamon_pong_msg((deamon_pong_msg_t *)msg->data, buffer);
 			pack32(msg->data_size, buffer);
 			break;
 		default:

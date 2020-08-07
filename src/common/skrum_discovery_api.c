@@ -24,7 +24,7 @@
 
 extern int skrum_init_discovery(void)
 {
-	int rc, fd;
+	int fd;
 	struct sockaddr_in addr;
 	struct ip_mreq mreq;
 	uint32_t s_addr;
@@ -32,16 +32,20 @@ extern int skrum_init_discovery(void)
 	skrum_setup_sockaddr(&addr, DISCOVERY_PORT, DISCOVERY_MCAST_ADDR);
 	fd = skrum_init_discovery_engine(&addr);
 	if (fd < 0) 
-		error("could not bind socket");
+		error("could not bind udp socket");
 
 	/* use setsocketopt to request the kernel to join multicast group */
-	if ((rc = inet_pton(AF_INET, DISCOVERY_MCAST_ADDR, &s_addr)) < 0)
-		perror("ip address conversion");
+	if (inet_pton(AF_INET, DISCOVERY_MCAST_ADDR, &s_addr) < 0) {
+		error("ip address conversion");
+		return -1;
+	}
 
 	mreq.imr_multiaddr.s_addr = s_addr;
 	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-	if ((rc = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq))) < 0)
-		perror("setsocketopt");
+	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&mreq, sizeof(mreq)) < 0) { 
+		error("%s: setsocketopt: either mcast is not supported, or network is down", __func__);
+		return -1;
+	}
 
 	return fd;
 }

@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 {
 	int sockfd;  /* listen on sock_fd, new connection on new_fd */
 	int disc_sockfd; /* listen on disc_sockfd for discovery */
-	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG };
+	log_option_t log_opt = { LOG_LEVEL_DEBUG, LOG_LEVEL_QUIET, LOG_LEVEL_QUIET };
 	uint16_t port = 3434;
 	uint16_t listening_port;
 
@@ -123,6 +123,7 @@ static void *_discovery_engine(void *arg)
 	_setup_controller_addr(conf->lfd, &addr);
 	msg->orig_addr = addr;
 	disc_msg->ctrlr_port = 3434;
+	disc_msg->ctrlr_startup_ts = conf->ctrlr_startup_ts;
 	msg->data = disc_msg;
 	
 	info("sending discovery multicast");
@@ -163,7 +164,6 @@ static void _msg_engine(void)
 
 	while(1)
 	{
-		info("Waiting for new connection");
 		if ((sock = skrum_accept(conf->lfd, cli)) >= 0){
 			_handle_connection(sock, cli);
 			continue;
@@ -243,6 +243,7 @@ static int _skrumctld_init(void)
 	}
 
 	cluster_node_list = list_create(NULL);
+	conf->ctrlr_startup_ts = time(NULL);
 
 	return rc;
 }

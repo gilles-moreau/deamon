@@ -74,6 +74,7 @@ static int _process_ctrlr_mcast (skrum_msg_t *msg)
 
 		/* set node id */
 		conf->cluster_id = resp_reg_msg->my_id;
+		info("sent new registration. cluster node id: %d", conf->cluster_id);
 	} else {
 		int fd;
 		skrum_msg_t response_pong;
@@ -84,7 +85,7 @@ static int _process_ctrlr_mcast (skrum_msg_t *msg)
 		resp_pong.my_id = conf->cluster_id;
 		response_pong.data = &resp_pong;
 
-		if ((fd = skrum_open_msg_conn(&conf->controller_ip) < 0))
+		if ((fd = skrum_open_msg_conn(&conf->controller_ip)) < 0)
 			return -1;
 
 		if (skrum_send_msg(fd, &response_pong) < 0)

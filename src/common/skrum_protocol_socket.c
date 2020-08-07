@@ -40,7 +40,7 @@ extern int skrum_init_discovery_engine(struct sockaddr_in *addr)
 	int fd;
 	int enable = 1;
 
-	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
 		perror("socket discovery");
 		return -1;
 	}

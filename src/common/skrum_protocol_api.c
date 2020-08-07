@@ -106,7 +106,7 @@ extern int skrum_send_recv_msg(struct sockaddr_in dest_addr,
 	int rc = -1;
 	int fd;
 
-	if ((fd = skrum_open_msg_conn(&dest_addr)) < 0)
+	if ((fd = skrum_open_msg_conn(&dest_addr)) <= 0)
 		return rc;
 
 	if (skrum_send_msg(fd, request_msg) >= 0) 

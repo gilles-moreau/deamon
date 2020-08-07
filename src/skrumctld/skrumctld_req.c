@@ -100,8 +100,6 @@ static int _register_cluster_node(request_register_msg_t *req)
 	list_append(cluster_node_list, nnode);
 	info("node %d has been added to the cluster", nnode->cluster_node_id);
 
-	_print_node_list(cluster_node_list);
-
 	return nnode->cluster_node_id;
 }
 
