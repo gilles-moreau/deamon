@@ -2,7 +2,7 @@
 Distributed application based on Slurm. Individual node (or process) can be run on machines located 
 in the same flat LAN. A multicast discovery algorithm builds the cluster.
 
-This constitutes the core architecture on which any distributed system can be built. Next 
+This constitutes the core architecture on which a distributed system can be built. Next 
 step is to include FUSE to build a distributed file system.
 
 ## Architecture
