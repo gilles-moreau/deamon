@@ -2,10 +2,14 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <hwloc.h>
+#include <stdbool.h>
 
 #include "src/common/logs.h"
 
 #include "src/common/xcpuinfo.h"
+
+static bool initialized = false;
+static uint16_t procs, boards, sockets, cores, threads = 1;
  
 static void _print_children(hwloc_topology_t topology, hwloc_obj_t obj,
 		int depth)
@@ -24,6 +28,28 @@ static void _print_children(hwloc_topology_t topology, hwloc_obj_t obj,
 	for (i = 0; i < obj->arity; i++) {
 		_print_children(topology, obj->children[i], depth + 1);
 	}
+}
+
+int xcpuinfo_init (void) {
+	if (initialized)
+		return XCPUINFO_SUCCESS;
+
+	if (xcpuinfo_hwloc_topo_get(&procs, &boards, &sockets,
+				&cores, &threads) != XCPUINFO_SUCCESS)
+		return XCPUINFO_ERROR;
+	
+	initialized = true;
+
+	return XCPUINFO_SUCCESS;
+}
+
+int xcpuinfo_fini (void) {
+	if (!initialized) 
+		return XCPUINFO_SUCCESS;
+
+	procs, boards, sockets, cores, threads = 0;
+
+	return XCPUINFO_SUCCESS;
 }
 
 extern int xcpuinfo_hwloc_topo_get (

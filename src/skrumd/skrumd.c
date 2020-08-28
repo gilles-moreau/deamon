@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 
 #include "src/common/logs.h"
+#include "src/common/xsignal.h"
 #include "src/common/skrum_protocol_defs.h"
 #include "src/common/skrum_protocol_pack.h"
 #include "src/common/skrum_protocol_api.h"
@@ -22,6 +23,7 @@
 #include "src/common/skrum_discovery_api.h"
 #include "src/common/macros.h"
 #include "src/common/xcpuinfo.h"
+#include "src/common/xsignal.h"
 
 #include "src/skrumd/skrumd_req.h"
 #include "src/skrumd/skrumd.h"
@@ -44,14 +46,20 @@ static pthread_cond_t active_cond  = PTHREAD_COND_INITIALIZER;
 skrumd_conf_t *conf = NULL;
 static pthread_mutex_t config_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static int _shutdown = 0;
+
 static int _skrumd_init(void);
 static void _init_conf(void);
 static void _msg_engine(void);
-static void _discovery_engine(void);
+static void _skrumd_shutdown(int signo);
+static int _skrumd_fini();
+static void _destroy_conf(void);
+static void *_discovery_engine(void *arg);
 static void _handle_connection(int sock, struct sockaddr_in *cli);
 static void *_service_connection(void *arg);
 static void _increment_thread_cnt(void);
 static void _decrement_thread_cnt(void);
+static void _wait_for_all_threads(int secs);
 
 int main(int argc, char **argv)
 {
@@ -82,6 +90,9 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	xsignal(SIGINT, _skrumd_shutdown);
+	xsignal(SIGTERM, _skrumd_shutdown);
+
 	sockfd = skrum_init_msg_engine_port(port, &listening_port);
 	if (sockfd < 0){
 		error("engine msg");
@@ -99,31 +110,37 @@ int main(int argc, char **argv)
 	conf->pid  = getpid();
 	conf->disc_fd = disc_sockfd;
 
-	//skrum_thread_create(&conf->thread_id_discovery, _discovery_engine, NULL);
-	_discovery_engine();
+	_increment_thread_cnt();
+	skrum_thread_create(&conf->thread_id_discovery, _discovery_engine, NULL);
 	_msg_engine();
 
+	_wait_for_all_threads(120);
+	_skrumd_fini();
 	return 0;
 }
 
-static void _discovery_engine(void)
+static void *_discovery_engine(void *arg)
 {
-	skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 	struct sockaddr_in cont_addr;
 
 	info("discovery engine msg on");
-	while(1)
+	while(!_shutdown)
 	{
+		skrum_msg_t *msg = malloc(sizeof(skrum_msg_t));
 		if (skrum_receive_discovery_msg(conf->disc_fd, msg, &cont_addr) == 0){
 			skrumd_req(msg);
+			skrum_free_msg_members(msg);
+			free(msg);
 			continue;
 		}
 
 		error("recv discovery failed");
 	}
+
 	close(conf->disc_fd);
-	free(msg);
-	return;
+	_decrement_thread_cnt();
+	info("discovery engine is shut down");
+	return NULL;
 }
 
 static void _msg_engine(void)
@@ -131,7 +148,7 @@ static void _msg_engine(void)
 	struct sockaddr_in *cli = malloc(sizeof(struct sockaddr_in));
 	int sock;
 
-	while(1)
+	while(!_shutdown)
 	{
 		info("waiting for new connection");
 		if ((sock = skrum_accept(conf->lfd, cli)) >= 0){
@@ -143,6 +160,7 @@ static void _msg_engine(void)
 		free(cli);
 		error("accept()");
 	}
+	info("message engine is shuting down");
 	close(conf->lfd);
 	return;
 }
@@ -174,6 +192,7 @@ static void *_service_connection(void *arg)
 	}
 	skrumd_req(msg);
 
+	skrum_free_msg_members(msg);
 	free(msg);
 	_decrement_thread_cnt();
 	return NULL;
@@ -199,17 +218,50 @@ static void _increment_thread_cnt(void)
 	skrum_mutex_unlock(&active_lock);
 }
 
+static void _wait_for_all_threads(int secs)
+{
+	struct timespec ts;
+	int rc;
+
+	ts.tv_sec  = time(NULL);
+	ts.tv_nsec = 0;
+	ts.tv_sec += secs;
+
+	skrum_mutex_lock(&active_lock);
+	while (active_threads > 0) {
+		info("waiting on %d active threads", active_threads);
+		rc = pthread_cond_timedwait(&active_cond, &active_lock, &ts);
+		if (rc == ETIMEDOUT) {
+			error("Timeout waiting for completion of %d threads",
+					active_threads);
+			skrum_cond_signal(&active_cond);
+			skrum_mutex_unlock(&active_lock);
+			return;
+		}
+	}
+	skrum_cond_signal(&active_cond);
+	skrum_mutex_unlock(&active_lock);
+	info("all threads complete");
+}
+
+
 static int _skrumd_init(void) 
 {
 	int rc;
 	
-	rc = xcpuinfo_hwloc_topo_get(&conf->cpus, &conf->boards,
-			&conf->sockets, &conf->cores, &conf->threads);
+	rc = xcpuinfo_init();
 	if (rc) {
 		error("failed to get hwloc info");
 	}
 
 	return rc;
+}
+
+static int _skrumd_fini() {
+	xcpuinfo_fini();
+	_destroy_conf();
+
+	return 0;
 }
 
 static void _init_conf(void) 
@@ -234,4 +286,21 @@ static void _init_conf(void)
 	skrum_mutex_init(&conf->config_mutex);
 	
 	return;
+}
+
+static void _destroy_conf(void)
+{
+	if (conf) {
+		skrum_mutex_destroy(&conf->config_mutex);
+		skrum_mutex_destroy(&active_lock);
+		skrum_cond_destroy(&active_cond);
+		free(conf);
+	}
+}
+
+static void _skrumd_shutdown(int signum)
+{
+	if (signum == SIGINT || signum == SIGTERM) {
+		_shutdown = 1;
+	}
 }

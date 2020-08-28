@@ -64,13 +64,13 @@
 #define skrum_thread_create(id, func, arg)				        \
 	do {								        \
 		pthread_attr_t attr;                                            \
-		int err;                                                \
-		skrum_attr_init(&attr);                                 \
-		err = pthread_create(id, &attr, func, arg);             \
-		if (err) {                                              \
-			errno = err;                                    \
-			fatal("%s: pthread_create error %m", __func__); \
-		}                                                       \
+		int err;                                                        \
+		skrum_attr_init(&attr);                                         \
+		err = pthread_create(id, &attr, func, arg);                     \
+		if (err) {                                                      \
+			errno = err;                                            \
+			fatal("%s: pthread_create error %m", __func__);         \
+		}                                                               \
 		skrum_attr_destroy(&attr);                                      \
 	} while (0)
 
@@ -125,18 +125,18 @@
 		if (err) {                                              \
 			errno = err;                                    \
 			fatal("%s:%d %s: pthread_cond_init(): %m",      \
-					__FILE__, __LINE__, __func__);          \
+					__FILE__, __LINE__, __func__);  \
 			abort();                                        \
 		}                                                       \
 	} while (0)
 
-#define skrum_cond_signal(cond)                                 \
+#define skrum_cond_signal(cond)                                         \
 	do {                                                            \
 		int err = pthread_cond_signal(cond);                    \
 		if (err) {                                              \
 			errno = err;                                    \
 			error("%s:%d %s: pthread_cond_signal(): %m",    \
-					__FILE__, __LINE__, __func__);          \
+					__FILE__, __LINE__, __func__);  \
 		}                                                       \
 	} while (0)
 
@@ -146,6 +146,16 @@
 		if (err) {                                              \
 			errno = err;                                    \
 			error("%s:%d %s: pthread_cond_wait(): %m",      \
-					__FILE__, __LINE__, __func__);          \
+					__FILE__, __LINE__, __func__);  \
+		}                                                       \
+	} while (0)
+
+#define skrum_cond_destroy(cond)                                        \
+	do {                                                            \
+		int err = pthread_cond_destroy(cond);                   \
+		if (err) {                                              \
+			errno = err;                                    \
+			error("%s:%d %s: pthread_cond_destroy(): %m",   \
+					__FILE__, __LINE__, __func__);  \
 		}                                                       \
 	} while (0)

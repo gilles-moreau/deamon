@@ -25,6 +25,7 @@
 #include "src/common/macros.h"
 #include "src/common/xcpuinfo.h"
 #include "src/common/list.h"
+#include "src/common/xsignal.h"
 
 #include "src/skrumctld/skrumctld.h"
 #include "src/skrumctld/skrumctld_req.h"
@@ -48,9 +49,14 @@ static pthread_cond_t cont_active_cond  = PTHREAD_COND_INITIALIZER;
 skrumctld_conf_t *conf;
 List cluster_node_list = NULL;
 
+static int _ctl_shutdown = 0;
+
 static int _skrumctld_init(void);
 static void _init_conf(void);
 static void _msg_engine(void);
+static void _skrumctld_shutdown(int signo);
+static int _skrumctld_fini();
+static void _destroy_conf(void);
 static void *_discovery_engine(void *arg);
 static int _setup_controller_addr(int fd, struct sockaddr_in *addr);
 static void _update_node_list(List node_list);
@@ -58,6 +64,7 @@ static void _handle_connection(int sock, struct sockaddr_in *cli);
 static void *_service_connection(void *arg);
 static void _increment_thread_cnt(void);
 static void _decrement_thread_cnt(void);
+static void _wait_for_all_threads(int secs);
 
 int main(int argc, char **argv)
 {
@@ -88,6 +95,9 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	xsignal(SIGINT, _skrumctld_shutdown);
+	xsignal(SIGTERM, _skrumctld_shutdown);
+
 	sockfd = skrum_init_msg_engine_port(port, &listening_port);
 	if (sockfd < 0){
 		error("engine msg");
@@ -105,8 +115,12 @@ int main(int argc, char **argv)
 	conf->pid  = getpid();
 	conf->disc_fd = disc_sockfd;
 
+	_increment_thread_cnt();
 	skrum_thread_create(&conf->thread_id_discovery, _discovery_engine, NULL);
 	_msg_engine();
+
+	_wait_for_all_threads(120);
+	_skrumctld_fini();
 
 	return 0;
 }
@@ -127,15 +141,17 @@ static void *_discovery_engine(void *arg)
 	msg->data = disc_msg;
 	
 	info("sending discovery multicast");
-	while(1) {
+	while(!_ctl_shutdown) {
 		if (skrum_send_discovery_msg(msg) < 0) 
 			error("error sending discovery message");
 		usleep(1000000);
 		_update_node_list(cluster_node_list);
 	}
 
-	free(msg);
+	info("discovery engine is shut down");
+	_decrement_thread_cnt();
 	free(disc_msg);
+	free(msg);
 	return NULL;
 }
 
@@ -162,7 +178,7 @@ static void _msg_engine(void)
 	struct sockaddr_in *cli = malloc(sizeof(struct sockaddr_in));
 	int sock;
 
-	while(1)
+	while(!_ctl_shutdown)
 	{
 		if ((sock = skrum_accept(conf->lfd, cli)) >= 0){
 			_handle_connection(sock, cli);
@@ -207,7 +223,9 @@ static void *_service_connection(void *arg)
 	if ((conn->fd > 0) && (close(conn->fd) < 0))
 		error("%s: error close fd", __func__);
 
+	skrum_free_msg_members(msg);
 	free(msg);
+	free(conn);
 	_decrement_thread_cnt();
 	return NULL;
 
@@ -232,20 +250,52 @@ static void _increment_thread_cnt(void)
 	skrum_mutex_unlock(&cont_active_lock);
 }
 
+static void _wait_for_all_threads(int secs)
+{
+	struct timespec ts;
+	int rc;
+
+	ts.tv_sec  = time(NULL);
+	ts.tv_nsec = 0;
+	ts.tv_sec += secs;
+
+	skrum_mutex_lock(&cont_active_lock);
+	while (cont_active_threads > 0) {
+		info("waiting on %d active threads", cont_active_threads);
+		rc = pthread_cond_timedwait(&cont_active_cond, &cont_active_lock, &ts);
+		if (rc == ETIMEDOUT) {
+			error("Timeout waiting for completion of %d threads",
+					cont_active_threads);
+			skrum_cond_signal(&cont_active_cond);
+			skrum_mutex_unlock(&cont_active_lock);
+			return;
+		}
+	}
+	skrum_cond_signal(&cont_active_cond);
+	skrum_mutex_unlock(&cont_active_lock);
+	info("all threads complete");
+}
+
 static int _skrumctld_init(void) 
 {
 	int rc;
 	
-	rc = xcpuinfo_hwloc_topo_get(&conf->cpus, &conf->boards,
-			&conf->sockets, &conf->cores, &conf->threads);
+	rc = xcpuinfo_init();
 	if (rc) {
 		error("failed to get hwloc info");
 	}
 
-	cluster_node_list = list_create(NULL);
+	cluster_node_list = list_create(free);
 	conf->ctrlr_startup_ts = time(NULL);
 
 	return rc;
+}
+
+static int _skrumctld_fini() {
+	xcpuinfo_fini();
+	_destroy_conf();
+
+	return 0;
 }
 
 static void _init_conf(void) 
@@ -270,6 +320,17 @@ static void _init_conf(void)
 	return;
 }
 
+static void _destroy_conf(void)
+{
+	if (conf) {
+		list_destroy(cluster_node_list);
+		skrum_mutex_destroy(&conf->config_mutex);
+		skrum_mutex_destroy(&cont_active_lock);
+		skrum_cond_destroy(&cont_active_cond);
+		free(conf);
+	}
+}
+
 static void _update_node_list(List node_list)
 {
 	ListIterator node_itr;
@@ -288,3 +349,11 @@ static void _update_node_list(List node_list)
 	list_iterator_destroy(node_itr);
 	return;
 }
+
+static void _skrumctld_shutdown(int signum)
+{
+	if (signum == SIGINT || signum == SIGTERM) {
+		_ctl_shutdown = 1;
+	}
+}
+

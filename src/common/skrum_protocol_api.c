@@ -86,6 +86,7 @@ int skrum_receive_msg(int fd, skrum_msg_t *msg)
 	rc = unpack_msg(msg, buffer);
 
 	free_buf(buffer);
+	free(buf);
 	return rc;
 }
 
@@ -114,5 +115,13 @@ extern int skrum_send_recv_msg(struct sockaddr_in dest_addr,
 	
 	close(fd);
 	return rc;
+}
+
+extern void skrum_free_msg_members(skrum_msg_t *msg)
+{
+	if (msg) {
+		skrum_free_msg_data((skrum_msg_type_t)msg->msg_type, msg->data);
+	}
+	return;
 }
 

@@ -16,20 +16,12 @@
 
 extern skrumd_conf_t *conf;
 
-static int _rpc_ping(skrum_msg_t *msg);
-static int _rpc_xcpuinfo(skrum_msg_t *msg);
 static int _resp_register(skrum_msg_t *msg);
 static int _process_ctrlr_mcast (skrum_msg_t *msg);
 
 void skrumd_req(skrum_msg_t *msg)
 {
 	switch(msg->msg_type) {
-		case REQUEST_PING: 
-			_rpc_ping(msg);
-			break;
-		case REQUEST_XCPUINFO:
-			_rpc_xcpuinfo(msg);
-			break;
 		case MCAST_CONTROLLER_INFO:
 			_process_ctrlr_mcast(msg);
 			break;
@@ -74,6 +66,7 @@ static int _process_ctrlr_mcast (skrum_msg_t *msg)
 
 		/* set node id */
 		conf->cluster_id = resp_reg_msg->my_id;
+		skrum_free_msg_members(&resp_register_msg);
 		info("sent new registration. cluster node id: %d", conf->cluster_id);
 	} else {
 		int fd;
@@ -93,19 +86,4 @@ static int _process_ctrlr_mcast (skrum_msg_t *msg)
 	} 
 
 	return 0;
-}
-
-static int _rpc_xcpuinfo(skrum_msg_t *msg)
-{
-	int rc = 0;
-
-	return rc;
-}
-
-static int _rpc_ping(skrum_msg_t *msg)
-{
-	int rc = 0;
-
-	return rc;
-
 }
